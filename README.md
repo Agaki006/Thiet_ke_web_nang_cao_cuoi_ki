@@ -16,7 +16,7 @@ API docs: http://localhost:8000/docs
 
 Luồng đăng ký: đăng nhập, gọi `POST /auth/wallet/nonce` bằng Bearer JWT, ký message trả về, gọi `POST /auth/wallet/verify`, sau đó upload vào `POST /artworks/register`. Backend stream giới hạn kích thước, validate ảnh thật, tính SHA-256/pHash và gọi `register` on-chain nếu Web3 được cấu hình. `POST /verify` đối chiếu local và chain.
 
-Trạng thái artwork: `pending_chain`, `protected`, `approved_local`, `chain_failed`.
+Trạng thái artwork: `pending_chain`, `protected`, `approved_local`, `chain_failed`. Nếu request bị ngắt sau khi broadcast, gọi `POST /artworks/{id}/retry-chain`; backend sẽ verify SHA-256 trên chain trước khi quyết định gửi transaction mới.
 
 ## Smart contract
 
@@ -32,6 +32,7 @@ Script deploy tạo `backend/app/contract_deployment.json`. Không commit `.env`
 ## Test
 
 ```bash
+pytest
 npm test
 ```
 

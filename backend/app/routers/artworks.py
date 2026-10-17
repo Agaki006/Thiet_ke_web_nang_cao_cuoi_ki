@@ -110,12 +110,18 @@ async def retry_chain(artwork_id: int, user: User = Depends(current_user), db: S
     row = db.get(Artwork, artwork_id)
     if not row: raise HTTPException(404, "Không tìm thấy artwork")
     if row.owner_id != user.id: raise HTTPException(403, "Không có quyền retry artwork này")
-    if row.status not in {"chain_failed", "approved_local"}:
+    if row.status not in {"chain_failed", "approved_local", "pending_chain"}:
         raise HTTPException(409, f"Artwork đang ở trạng thái {row.status}, không cần retry")
     if not user.wallet_address or not user.wallet_verified_at:
         raise HTTPException(403, "Hãy xác thực ví MetaMask trước")
-    row.status = "pending_chain"; db.commit()
     try:
+        # Timeout trước đây có thể chỉ là receipt timeout trong khi tx đã được mined.
+        # Kiểm tra chain trước khi tạo giao dịch mới để tránh duplicate/revert.
+        if await run_in_threadpool(verify_on_chain, row.sha256):
+            row.status = "protected"
+            db.commit(); db.refresh(row)
+            return parse_artwork(row)
+        row.status = "pending_chain"; db.commit()
         row.tx_hash = await run_in_threadpool(register_on_chain, row.sha256, user.wallet_address, row.originality, f"mediaguard://artworks/{row.id}")
         row.status = "protected" if row.tx_hash else "approved_local"
     except Exception:
