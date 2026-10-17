@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 load_dotenv()
@@ -19,3 +19,19 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_sqlite_columns():
+    """Additive migration for legacy SQLite databases created before wallet fields."""
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    columns = {row["name"] for row in inspect(engine).get_columns("users")}
+    additions = {
+        "wallet_nonce": "VARCHAR(128)",
+        "wallet_nonce_expires_at": "DATETIME",
+        "wallet_verified_at": "DATETIME",
+    }
+    with engine.begin() as connection:
+        for name, sql_type in additions.items():
+            if name not in columns:
+                connection.execute(text(f"ALTER TABLE users ADD COLUMN {name} {sql_type}"))

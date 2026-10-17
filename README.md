@@ -36,4 +36,4 @@ pytest
 npm test
 ```
 
-Production bắt buộc đặt `JWT_SECRET` tối thiểu 32 ký tự; nên dùng PostgreSQL và index/vector index cho pHash khi dữ liệu lớn.
+Production bắt buộc đặt `JWT_SECRET` tối thiểu 32 ký tự. Backend có migration additive tự động cho ba cột wallet trên SQLite cũ, rate limit mặc định 30 lượt/phút/IP cho `/verify` (`VERIFY_RATE_LIMIT`), lock theo file hash để chống gửi duplicate trong cùng process và lock nonce khi broadcast. Khi chạy nhiều worker/instance, nên dùng PostgreSQL với cơ chế khóa phân tán hoặc queue giao dịch.
