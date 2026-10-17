@@ -7,6 +7,9 @@ from eth_utils import to_checksum_address
 logger = logging.getLogger(__name__)
 _tx_lock = threading.Lock()
 _file_locks = defaultdict(threading.Lock)
+_client_cache = None
+_client_cache_key = None
+_client_cache_lock = threading.Lock()
 ABI_PATH = Path(__file__).resolve().parents[1] / "contract_deployment.json"
 MIN_ABI = [
     {"inputs":[{"internalType":"bytes32","name":"fileHash","type":"bytes32"},{"internalType":"address","name":"creator","type":"address"},{"internalType":"uint8","name":"originalityScore","type":"uint8"},{"internalType":"string","name":"metadataUrl","type":"string"}],"name":"register","outputs":[],"stateMutability":"nonpayable","type":"function"},
@@ -14,13 +17,20 @@ MIN_ABI = [
 ]
 
 def _client():
+    global _client_cache, _client_cache_key
     rpc, private_key, address = os.getenv("WEB3_RPC_URL"), os.getenv("BACKEND_PRIVATE_KEY"), os.getenv("CONTRACT_ADDRESS")
     if not rpc or not private_key or not address: return None
-    w3 = Web3(Web3.HTTPProvider(rpc))
-    if not w3.is_connected(): raise RuntimeError("Không kết nối được RPC blockchain")
-    abi = MIN_ABI
-    if ABI_PATH.exists(): abi = json.loads(ABI_PATH.read_text()).get("abi", MIN_ABI)
-    return w3, w3.eth.contract(address=to_checksum_address(address), abi=abi), private_key
+    key = (rpc, private_key, address)
+    with _client_cache_lock:
+        if _client_cache is not None and _client_cache_key == key:
+            return _client_cache
+        w3 = Web3(Web3.HTTPProvider(rpc))
+        if not w3.is_connected(): raise RuntimeError("Không kết nối được RPC blockchain")
+        abi = MIN_ABI
+        if ABI_PATH.exists(): abi = json.loads(ABI_PATH.read_text()).get("abi", MIN_ABI)
+        _client_cache = (w3, w3.eth.contract(address=to_checksum_address(address), abi=abi), private_key)
+        _client_cache_key = key
+        return _client_cache
 
 def register_on_chain(file_hash: str, creator: str, originality: int, metadata_url: str = "") -> str | None:
     client = _client()

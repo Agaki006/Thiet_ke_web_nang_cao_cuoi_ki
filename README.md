@@ -36,4 +36,4 @@ pytest
 npm test
 ```
 
-Production bắt buộc đặt `JWT_SECRET` tối thiểu 32 ký tự. Backend có migration additive tự động cho ba cột wallet trên SQLite cũ, rate limit mặc định 30 lượt/phút/IP cho `/verify` (`VERIFY_RATE_LIMIT`), lock theo file hash để chống gửi duplicate trong cùng process và lock nonce khi broadcast. Khi chạy nhiều worker/instance, nên dùng PostgreSQL với cơ chế khóa phân tán hoặc queue giao dịch.
+Production bắt buộc đặt `JWT_SECRET` tối thiểu 32 ký tự. Backend có migration additive tự động cho ba cột wallet trên SQLite cũ, rate limit mặc định 30 lượt/phút/IP cho `/verify` (`VERIFY_RATE_LIMIT`) và 10 lượt/phút/IP cho auth (`AUTH_RATE_LIMIT`). RPC verify chạy ngoài event loop và dùng client cache. Lock theo file hash chống gửi duplicate trong cùng process, lock nonce chỉ giữ tới lúc broadcast. Khi chạy nhiều worker/instance, nên dùng PostgreSQL với cơ chế khóa phân tán hoặc queue giao dịch.

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy import select
@@ -10,6 +10,7 @@ from ..models import User
 from ..schemas import UserRegister, LoginRequest, Token, WalletNonce, WalletVerify
 from ..services.auth_service import hash_password, verify_password, create_token, decode_token
 from ..services.wallet_service import new_nonce, build_message, expires_at, recover_address
+from ..services.rate_limit import AUTH_LIMITER
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -22,7 +23,9 @@ def current_user(token: str = Depends(oauth2), db: Session = Depends(get_db)) ->
     return user
 
 @router.post("/register", response_model=Token, status_code=201)
-def register(data: UserRegister, db: Session = Depends(get_db)):
+def register(request: Request, data: UserRegister, db: Session = Depends(get_db)):
+    if not AUTH_LIMITER.allow(f"auth:{request.client.host if request.client else 'unknown'}"):
+        raise HTTPException(429, "Quá nhiều yêu cầu xác thực, vui lòng thử lại sau")
     if db.scalar(select(User).where(User.email == data.email)):
         raise HTTPException(409, "Email đã tồn tại")
     user = User(email=data.email, password_hash=hash_password(data.password))
@@ -30,14 +33,18 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
     return Token(access_token=create_token(str(user.id)))
 
 @router.post("/login", response_model=Token)
-def login(data: LoginRequest, db: Session = Depends(get_db)):
+def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
+    if not AUTH_LIMITER.allow(f"auth:{request.client.host if request.client else 'unknown'}"):
+        raise HTTPException(429, "Quá nhiều yêu cầu xác thực, vui lòng thử lại sau")
     user = db.scalar(select(User).where(User.email == data.email))
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email hoặc mật khẩu không đúng")
     return Token(access_token=create_token(str(user.id)))
 
 @router.post("/token", response_model=Token)
-def oauth_token(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def oauth_token(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    if not AUTH_LIMITER.allow(f"auth:{request.client.host if request.client else 'unknown'}"):
+        raise HTTPException(429, "Quá nhiều yêu cầu xác thực, vui lòng thử lại sau")
     user = db.scalar(select(User).where(User.email == form.username))
     if not user or not verify_password(form.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email hoặc mật khẩu không đúng", headers={"WWW-Authenticate": "Bearer"})

@@ -1,6 +1,4 @@
-import json, logging, os, time, uuid
-from collections import defaultdict
-from threading import Lock
+import json, logging, os, uuid
 from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from starlette.concurrency import run_in_threadpool
@@ -14,6 +12,7 @@ from ..schemas import ArtworkOut, VerifyResult
 from ..services.auth_service import decode_token
 from ..services.blockchain_service import register_on_chain, verify_on_chain
 from ..services.image_service import sha256_file, phash_file, similarity_percent, validate_image, InvalidImageError
+from ..services.rate_limit import VERIFY_LIMITER
 
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token")
 logger = logging.getLogger(__name__)
@@ -21,9 +20,6 @@ router = APIRouter(tags=["artworks"])
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "./uploads")); UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED = {"image/jpeg", "image/png", "image/webp"}
 MAX_BYTES = int(float(os.getenv("MAX_UPLOAD_MB", "10")) * 1024 * 1024)
-VERIFY_LIMIT = int(os.getenv("VERIFY_RATE_LIMIT", "30"))
-_verify_hits = defaultdict(list)
-_verify_lock = Lock()
 
 
 def current_user(token: str = Depends(oauth2), db: Session = Depends(get_db)) -> User:
@@ -85,7 +81,7 @@ async def register_artwork(file: UploadFile = File(...), title: str = Form("Unti
         db.add(row); db.commit(); db.refresh(row)
         try:
             row.tx_hash = await run_in_threadpool(register_on_chain, sha, user.wallet_address, row.originality, f"mediaguard://artworks/{row.id}")
-            row.status = "protected" if row.tx_hash or _safe_verify_on_chain(sha) else "approved_local"
+            row.status = "protected" if row.tx_hash or await run_in_threadpool(_safe_verify_on_chain, sha) else "approved_local"
         except Exception:
             logger.exception("Ghi artwork %s lên blockchain thất bại", row.id)
             row.status = "chain_failed"
@@ -96,21 +92,16 @@ async def register_artwork(file: UploadFile = File(...), title: str = Form("Unti
 
 @router.post("/verify", response_model=VerifyResult)
 async def verify_artwork(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    now = time.monotonic()
     client_ip = request.client.host if request.client else "unknown"
-    with _verify_lock:
-        recent = [stamp for stamp in _verify_hits[client_ip] if now - stamp < 60]
-        if len(recent) >= VERIFY_LIMIT:
-            raise HTTPException(429, "Quá nhiều lượt verify, vui lòng thử lại sau")
-        recent.append(now)
-        _verify_hits[client_ip] = recent
+    if not VERIFY_LIMITER.allow(f"verify:{client_ip}"):
+        raise HTTPException(429, "Quá nhiều lượt verify, vui lòng thử lại sau")
     target = await save_upload(file, "verify")
     try:
         sha, phash = sha256_file(target), phash_file(target)
     finally: target.unlink(missing_ok=True)
     exact = db.scalar(select(Artwork).where(Artwork.sha256 == sha))
     if exact:
-        return VerifyResult(sha256=sha, registered=True, artwork_id=exact.id, similarity_percent=100, on_chain_registered=_safe_verify_on_chain(sha), message="Đã xác minh chính xác")
+        return VerifyResult(sha256=sha, registered=True, artwork_id=exact.id, similarity_percent=100, on_chain_registered=await run_in_threadpool(_safe_verify_on_chain, sha), message="Đã xác minh chính xác")
     nearest, best = None, 0.0
     for row in db.scalars(select(Artwork)).all():
         score = similarity_percent(phash, row.phash)
@@ -136,7 +127,7 @@ async def retry_chain(artwork_id: int, user: User = Depends(current_user), db: S
             return parse_artwork(row)
         row.status = "pending_chain"; db.commit()
         row.tx_hash = await run_in_threadpool(register_on_chain, row.sha256, user.wallet_address, row.originality, f"mediaguard://artworks/{row.id}")
-        row.status = "protected" if row.tx_hash or _safe_verify_on_chain(row.sha256) else "approved_local"
+        row.status = "protected" if row.tx_hash or await run_in_threadpool(_safe_verify_on_chain, row.sha256) else "approved_local"
     except Exception:
         logger.exception("Retry ghi artwork %s lên blockchain thất bại", row.id)
         row.status = "chain_failed"
