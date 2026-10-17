@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pillow
+imagehash
+web3
+eth-account
+python-dotenv
+python-multipart
+passlib[bcrypt]
+python-jose[cryptography]
+email-validator
+google-genai
