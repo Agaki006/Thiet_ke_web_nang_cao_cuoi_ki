@@ -1,6 +1,7 @@
-import json, os, uuid
+import json, logging, os, uuid
 from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from starlette.concurrency import run_in_threadpool
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy import select
@@ -13,6 +14,7 @@ from ..services.blockchain_service import register_on_chain, verify_on_chain
 from ..services.image_service import sha256_file, phash_file, similarity_percent, validate_image, InvalidImageError
 
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token")
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["artworks"])
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "./uploads")); UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED = {"image/jpeg", "image/png", "image/webp"}
@@ -48,6 +50,14 @@ async def save_upload(file: UploadFile, prefix: str) -> Path:
     except Exception:
         target.unlink(missing_ok=True); raise
 
+
+def _safe_verify_on_chain(file_hash: str) -> bool:
+    try:
+        return verify_on_chain(file_hash)
+    except Exception:
+        logger.exception("Không thể verify artwork %s trên blockchain", file_hash)
+        return False
+
 @router.get("/artworks", response_model=list[ArtworkOut])
 def list_artworks(db: Session = Depends(get_db)):
     return [parse_artwork(x) for x in db.scalars(select(Artwork).order_by(Artwork.created_at.desc())).all()]
@@ -69,9 +79,10 @@ async def register_artwork(file: UploadFile = File(...), title: str = Form("Unti
         row = Artwork(owner_id=user.id, file_path=str(target), sha256=sha, phash=phash, title=title, description=description, tags=json.dumps(tag_list), originality=round(100-best), status="pending_chain")
         db.add(row); db.commit(); db.refresh(row)
         try:
-            row.tx_hash = register_on_chain(sha, user.wallet_address, row.originality, f"mediaguard://artworks/{row.id}")
+            row.tx_hash = await run_in_threadpool(register_on_chain, sha, user.wallet_address, row.originality, f"mediaguard://artworks/{row.id}")
             row.status = "protected" if row.tx_hash else "approved_local"
         except Exception:
+            logger.exception("Ghi artwork %s lên blockchain thất bại", row.id)
             row.status = "chain_failed"
         db.commit(); db.refresh(row)
         return parse_artwork(row)
@@ -86,9 +97,29 @@ async def verify_artwork(file: UploadFile = File(...), db: Session = Depends(get
     finally: target.unlink(missing_ok=True)
     exact = db.scalar(select(Artwork).where(Artwork.sha256 == sha))
     if exact:
-        return VerifyResult(sha256=sha, registered=True, artwork_id=exact.id, similarity_percent=100, on_chain_registered=verify_on_chain(sha), message="Đã xác minh chính xác")
+        return VerifyResult(sha256=sha, registered=True, artwork_id=exact.id, similarity_percent=100, on_chain_registered=_safe_verify_on_chain(sha), message="Đã xác minh chính xác")
     nearest, best = None, 0.0
     for row in db.scalars(select(Artwork)).all():
         score = similarity_percent(phash, row.phash)
         if score > best: best, nearest = score, row
     return VerifyResult(sha256=sha, registered=False, suspected_artwork_id=nearest.id if nearest else None, similarity_percent=best, message=f"Không trùng tuyệt đối; giống gần nhất {best}%" if nearest else "Chưa có dữ liệu đối chiếu")
+
+
+@router.post("/artworks/{artwork_id}/retry-chain", response_model=ArtworkOut)
+async def retry_chain(artwork_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    row = db.get(Artwork, artwork_id)
+    if not row: raise HTTPException(404, "Không tìm thấy artwork")
+    if row.owner_id != user.id: raise HTTPException(403, "Không có quyền retry artwork này")
+    if row.status not in {"chain_failed", "approved_local"}:
+        raise HTTPException(409, f"Artwork đang ở trạng thái {row.status}, không cần retry")
+    if not user.wallet_address or not user.wallet_verified_at:
+        raise HTTPException(403, "Hãy xác thực ví MetaMask trước")
+    row.status = "pending_chain"; db.commit()
+    try:
+        row.tx_hash = await run_in_threadpool(register_on_chain, row.sha256, user.wallet_address, row.originality, f"mediaguard://artworks/{row.id}")
+        row.status = "protected" if row.tx_hash else "approved_local"
+    except Exception:
+        logger.exception("Retry ghi artwork %s lên blockchain thất bại", row.id)
+        row.status = "chain_failed"
+    db.commit(); db.refresh(row)
+    return parse_artwork(row)

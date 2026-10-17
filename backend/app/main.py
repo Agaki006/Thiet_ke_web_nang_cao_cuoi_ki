@@ -6,7 +6,8 @@ from .db import Base, engine
 from .routers import auth, artworks
 
 load_dotenv()
-if os.getenv("ENV", "development") == "production" and len(os.getenv("JWT_SECRET", "")) < 32:
+jwt_secret = os.getenv("JWT_SECRET", "")
+if os.getenv("ENV", "development") == "production" and (len(jwt_secret) < 32 or jwt_secret.startswith("REPLACE_ME")):
     raise RuntimeError("JWT_SECRET phải có ít nhất 32 ký tự trong production")
 Base.metadata.create_all(bind=engine)
 origins = [x.strip() for x in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",") if x.strip()]
