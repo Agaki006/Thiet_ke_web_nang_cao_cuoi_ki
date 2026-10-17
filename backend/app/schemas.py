@@ -4,11 +4,24 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
-    wallet_address: str | None = None
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
 
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class WalletNonce(BaseModel):
+    nonce: str
+    message: str
+    expires_at: datetime
+
+class WalletVerify(BaseModel):
+    wallet_address: str
+    signature: str
+    nonce: str
 
 class ArtworkOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -29,4 +42,5 @@ class VerifyResult(BaseModel):
     artwork_id: int | None = None
     similarity_percent: float = 0
     suspected_artwork_id: int | None = None
+    on_chain_registered: bool = False
     message: str

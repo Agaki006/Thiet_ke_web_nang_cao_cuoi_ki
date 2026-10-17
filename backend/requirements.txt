@@ -8,6 +8,9 @@ eth-account
 python-dotenv
 python-multipart
 passlib[bcrypt]
+bcrypt<5
 python-jose[cryptography]
 email-validator
 google-genai
+httpx
+pytest

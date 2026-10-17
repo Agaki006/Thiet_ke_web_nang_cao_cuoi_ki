@@ -1,31 +1,38 @@
 # MediaGuard
 
-Đăng ký bản quyền ảnh số bằng SHA-256, pHash và chứng nhận on-chain trên Ethereum Sepolia.
+Đăng ký bản quyền ảnh số bằng SHA-256, pHash, xác thực ví MetaMask và chứng nhận on-chain trên Ethereum Sepolia.
 
-## Smart contract
-
-```bash
-cp .env.example .env
-# điền SEPOLIA_RPC_URL, DEPLOYER_PRIVATE_KEY, ETHERSCAN_API_KEY
-npm install
-npm run compile
-npm run deploy:local       # cần chạy npx hardhat node ở terminal khác
-npm run deploy:sepolia
-```
-
-Sau deploy, script tạo `backend/app/contract_deployment.json`. Không commit `.env` hoặc private key.
-
-## Backend
+## Chạy backend
 
 ```bash
 cd backend
+python -m venv venv
+./venv/bin/pip install -r requirements.txt
+cp ../.env.example .env
 ../backend/venv/bin/uvicorn app.main:app --reload --port 8000
 ```
 
 API docs: http://localhost:8000/docs
 
-Các endpoint khung: `POST /auth/register`, `POST /auth/login`, `GET /artworks`, `POST /artworks/register`, `POST /verify`.
+Luồng đăng ký: đăng nhập, gọi `POST /auth/wallet/nonce` bằng Bearer JWT, ký message trả về, gọi `POST /auth/wallet/verify`, sau đó upload vào `POST /artworks/register`. Backend stream giới hạn kích thước, validate ảnh thật, tính SHA-256/pHash và gọi `register` on-chain nếu Web3 được cấu hình. `POST /verify` đối chiếu local và chain.
 
-## Ghi chú bảo mật
+Trạng thái artwork: `pending_chain`, `protected`, `approved_local`, `chain_failed`.
 
-Backend wallet chỉ nên là hot wallet có số dư nhỏ và quyền gọi `register/revoke`. Trong production nên đặt private key ở secret manager, giới hạn kích thước/MIME ảnh, dùng object storage riêng và thêm nonce chống replay cho chữ ký MetaMask.
+## Smart contract
+
+```bash
+npm install
+npm run compile
+cp .env.example .env
+npm run deploy:sepolia
+```
+
+Script deploy tạo `backend/app/contract_deployment.json`. Không commit `.env`, private key hoặc file upload.
+
+## Test
+
+```bash
+npm test
+```
+
+Production bắt buộc đặt `JWT_SECRET` tối thiểu 32 ký tự; nên dùng PostgreSQL và index/vector index cho pHash khi dữ liệu lớn.

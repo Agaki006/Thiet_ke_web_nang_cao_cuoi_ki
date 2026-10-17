@@ -1,11 +1,17 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from .db import Base, engine
 from .routers import auth, artworks
 
+load_dotenv()
+if os.getenv("ENV", "development") == "production" and len(os.getenv("JWT_SECRET", "")) < 32:
+    raise RuntimeError("JWT_SECRET phải có ít nhất 32 ký tự trong production")
 Base.metadata.create_all(bind=engine)
-app = FastAPI(title="MediaGuard API", version="0.1.0", description="Đăng ký bản quyền ảnh bằng SHA-256, pHash và blockchain")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+origins = [x.strip() for x in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",") if x.strip()]
+app = FastAPI(title="MediaGuard API", version="0.2.0", description="Đăng ký bản quyền ảnh bằng SHA-256, pHash và blockchain")
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
 app.include_router(auth.router)
 app.include_router(artworks.router)
 
