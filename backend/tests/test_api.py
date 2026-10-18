@@ -16,6 +16,7 @@ from app.db import SessionLocal
 from app.models import Artwork, User
 from app.routers import artworks as artwork_router
 from app.services.auth_service import hash_password
+from app.services.rate_limit import SlidingWindowLimiter
 
 client = TestClient(app)
 
@@ -33,10 +34,12 @@ def test_auth_and_verify_endpoint(monkeypatch):
     token = client.post("/auth/login", json={"email": email, "password": "correct-horse-battery-staple"}).json()["access_token"]
     assert token
 
-    monkeypatch.setattr(artwork_router, "VERIFY_LIMITER", type("Limiter", (), {"allow": lambda self, key: True})())
+    monkeypatch.setattr(artwork_router, "VERIFY_LIMITER", SlidingWindowLimiter(limit=1))
     response = client.post("/verify", files={"file": ("image.png", png_bytes(), "image/png")})
     assert response.status_code == 200
     assert response.json()["registered"] is False
+    response = client.post("/verify", files={"file": ("image.png", png_bytes(), "image/png")})
+    assert response.status_code == 429
 
 
 def test_retry_chain_updates_existing_artwork(monkeypatch):
@@ -56,3 +59,4 @@ def test_retry_chain_updates_existing_artwork(monkeypatch):
     response = client.post(f"/artworks/{artwork_id}/retry-chain", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "protected"
+    Path("/tmp/mediaguard-api-tests.db").unlink(missing_ok=True)
