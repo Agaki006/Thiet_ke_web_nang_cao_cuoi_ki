@@ -1,6 +1,6 @@
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowUpRight, Check, CheckCircle2, ChevronRight, Copy, FileCheck2, ImagePlus, LayoutDashboard, Loader2, LogIn, Menu, ScanLine, ShieldCheck, Sparkles, UploadCloud, Wallet, X } from 'lucide-react'
-import { api, Artwork, AUTH_TOKEN_KEY, VerifyResult } from './api'
+import { api, Artwork, AUTH_TOKEN_KEY, WALLET_ADDRESS_KEY, VerifyResult } from './api'
 import { connectWallet, signWalletMessage } from './wallet'
 
 type View = 'gallery' | 'protect' | 'verify'
@@ -37,7 +37,7 @@ function App() {
   const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname))
   const [mobileOpen, setMobileOpen] = useState(false)
   const [artworks, setArtworks] = useState<Artwork[]>([])
-  const [wallet, setWallet] = useState<string | null>(null)
+  const [wallet, setWallet] = useState<string | null>(() => localStorage.getItem(WALLET_ADDRESS_KEY))
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(AUTH_TOKEN_KEY))
   const [toast, setToast] = useState<Toast>(null)
   const [authOpen, setAuthOpen] = useState(false)
@@ -52,7 +52,7 @@ function App() {
   useEffect(() => {
     const onAuthExpired = (event: Event) => {
       const message = (event as CustomEvent<{ message?: string }>).detail?.message
-      setToken(null); setWallet(null); setAuthOpen(true)
+      setToken(null); setAuthOpen(true)
       notify({ type: 'error', message: message ?? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' })
     }
     window.addEventListener('mediaguard:auth-expired', onAuthExpired)
@@ -70,26 +70,33 @@ function App() {
     setView(nextView)
   }
 
+  const verifyConnectedWallet = async (connectedAddress: string) => {
+    const nonce = await api.walletNonce()
+    const signed = await signWalletMessage(nonce.message)
+    if (signed.address.toLowerCase() !== connectedAddress.toLowerCase()) throw new Error('Tài khoản MetaMask hiện tại khác với ví đã kết nối.')
+    const walletToken = await api.walletVerify(signed.address, signed.signature, nonce.nonce)
+    localStorage.setItem(AUTH_TOKEN_KEY, walletToken.access_token)
+    localStorage.setItem(WALLET_ADDRESS_KEY, signed.address)
+    setToken(walletToken.access_token)
+    setWallet(signed.address)
+    notify({ type: 'success', message: 'Ví đã được xác thực. Bạn có thể bảo hộ tác phẩm.' })
+    return signed.address
+  }
+
   const onWallet = async () => {
     try {
       const address = await connectWallet()
+      localStorage.setItem(WALLET_ADDRESS_KEY, address)
       setWallet(address)
-      if (token) {
-        const nonce = await api.walletNonce()
-        const signed = await signWalletMessage(nonce.message)
-        const token = await api.walletVerify(signed.address, signed.signature, nonce.nonce)
-        localStorage.setItem(AUTH_TOKEN_KEY, token.access_token)
-        setToken(token.access_token)
-        notify({ type: 'success', message: 'Ví đã được xác thực. Bạn có thể bảo hộ tác phẩm.' })
-      } else {
-        notify({ type: 'success', message: `Đã kết nối ${shortWallet(address)}. Đăng nhập để xác thực ví.` })
-      }
+      if (token) await verifyConnectedWallet(address)
+      else notify({ type: 'success', message: `Đã kết nối ${shortWallet(address)}. Đăng nhập để xác thực ví.` })
     } catch (error) { notify({ type: 'error', message: error instanceof Error ? error.message : 'Không thể kết nối ví.' }) }
   }
+
   const logout = () => {
     localStorage.removeItem(AUTH_TOKEN_KEY)
-    setToken(null); setWallet(null)
-    notify({ type: 'success', message: 'Đã đăng xuất khỏi MediaGuard.' })
+    setToken(null)
+    notify({ type: 'success', message: 'Đã đăng xuất khỏi MediaGuard. Ví vẫn được giữ kết nối.' })
   }
 
   return <div className="app-shell">
@@ -110,7 +117,7 @@ function App() {
         {view === 'verify' && <Verify notify={notify} />}
       </div>
     </main>
-    {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSuccess={(nextToken) => { localStorage.setItem(AUTH_TOKEN_KEY, nextToken); setToken(nextToken); setAuthOpen(false); notify({ type: 'success', message: 'Đăng nhập thành công.' }) }} notify={notify} />}
+    {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSuccess={async (nextToken) => { localStorage.setItem(AUTH_TOKEN_KEY, nextToken); setToken(nextToken); setAuthOpen(false); if (wallet) { try { await verifyConnectedWallet(wallet) } catch (error) { notify({ type: 'error', message: error instanceof Error ? error.message : 'Đăng nhập thành công nhưng chưa ký xác thực ví.' }) } } else notify({ type: 'success', message: 'Đăng nhập thành công.' }) }} notify={notify} />}
     {toast && <div className={`toast toast-${toast.type}`}><div className="toast-icon">{toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}</div>{toast.message}<button onClick={() => setToast(null)}><X size={15} /></button></div>}
   </div>
 }

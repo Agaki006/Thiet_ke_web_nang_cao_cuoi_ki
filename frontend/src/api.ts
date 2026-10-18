@@ -23,6 +23,7 @@ export type VerifyResult = {
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 export const AUTH_TOKEN_KEY = 'mediaguard_token'
+export const WALLET_ADDRESS_KEY = 'mediaguard_wallet'
 
 export class AuthExpiredError extends Error {
   constructor(message = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.') {
