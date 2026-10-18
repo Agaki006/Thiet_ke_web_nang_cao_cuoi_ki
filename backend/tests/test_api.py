@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from eth_account import Account
+from eth_account.messages import encode_defunct
 from PIL import Image
 
 from app.main import app
@@ -11,6 +13,7 @@ from app.models import Artwork, User
 from app.routers import artworks as artwork_router
 from app.services.auth_service import hash_password
 from app.services.rate_limit import SlidingWindowLimiter
+from app.services.wallet_service import build_message
 
 client = TestClient(app)
 
@@ -53,3 +56,44 @@ def test_retry_chain_updates_existing_artwork(monkeypatch):
     response = client.post(f"/artworks/{artwork_id}/retry-chain", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "protected"
+
+
+def test_metamask_signature_and_nonce_errors():
+    email = f"wallet-{uuid4().hex}@example.com"
+    password = "correct-horse-battery-staple"
+    register = client.post("/auth/register", json={"email": email, "password": password})
+    assert register.status_code == 201, register.text
+    token = register.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    nonce_response = client.post("/auth/wallet/nonce", headers=headers)
+    assert nonce_response.status_code == 200, nonce_response.text
+    nonce_data = nonce_response.json()
+    account = Account.create()
+
+    wrong_nonce = "definitely-not-the-issued-nonce"
+    wrong_message = build_message(email, wrong_nonce)
+    wrong_signature = Account.sign_message(encode_defunct(text=wrong_message), account.key).signature.hex()
+    rejected = client.post("/auth/wallet/verify", headers=headers, json={
+        "wallet_address": account.address,
+        "signature": wrong_signature,
+        "nonce": wrong_nonce,
+    })
+    assert rejected.status_code == 400
+    assert "Nonce" in rejected.json()["detail"]
+
+    signature = Account.sign_message(encode_defunct(text=nonce_data["message"]), account.key).signature.hex()
+    verified = client.post("/auth/wallet/verify", headers=headers, json={
+        "wallet_address": account.address,
+        "signature": signature,
+        "nonce": nonce_data["nonce"],
+    })
+    assert verified.status_code == 200, verified.text
+
+    replayed = client.post("/auth/wallet/verify", headers=headers, json={
+        "wallet_address": account.address,
+        "signature": signature,
+        "nonce": nonce_data["nonce"],
+    })
+    assert replayed.status_code == 400
+    assert "Nonce" in replayed.json()["detail"]
