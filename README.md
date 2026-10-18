@@ -16,6 +16,16 @@ API docs: http://localhost:8000/docs
 
 Luồng đăng ký: đăng nhập, gọi `POST /auth/wallet/nonce` bằng Bearer JWT, ký message trả về, gọi `POST /auth/wallet/verify`, sau đó upload vào `POST /artworks/register`. Backend stream giới hạn kích thước, validate ảnh thật, tính SHA-256/pHash và gọi `register` on-chain nếu Web3 được cấu hình. `POST /verify` đối chiếu local và chain.
 
+## Chạy frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Mở http://localhost:5173. Vite proxy `/api` tới `http://localhost:8000`; nếu backend chạy ở URL khác, tạo `frontend/.env.local` với `VITE_API_BASE=https://your-api.example.com`. Frontend có các route `/`, `/protect` và `/verify`, đăng nhập/đăng ký, kết nối MetaMask, ký nonce, upload bảo hộ, gallery và verify công khai.
+
 Trạng thái artwork: `pending_chain`, `protected`, `approved_local`, `chain_failed`. Nếu request bị ngắt sau khi broadcast, gọi `POST /artworks/{id}/retry-chain`; backend sẽ verify SHA-256 trên chain trước khi quyết định gửi transaction mới.
 
 ## Smart contract
