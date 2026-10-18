@@ -1,12 +1,6 @@
 import io
-import os
 from datetime import datetime, timezone
 from uuid import uuid4
-from pathlib import Path
-
-os.environ.setdefault("DATABASE_URL", "sqlite:////tmp/mediaguard-api-tests.db")
-os.environ.setdefault("JWT_SECRET", "0123456789abcdef0123456789abcdef")
-os.environ.setdefault("ENV", "test")
 
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -59,4 +53,3 @@ def test_retry_chain_updates_existing_artwork(monkeypatch):
     response = client.post(f"/artworks/{artwork_id}/retry-chain", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "protected"
-    Path("/tmp/mediaguard-api-tests.db").unlink(missing_ok=True)

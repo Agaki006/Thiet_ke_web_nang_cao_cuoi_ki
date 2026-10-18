@@ -10,7 +10,7 @@ from ..db import get_db
 from ..models import Artwork, User
 from ..schemas import ArtworkOut, VerifyResult
 from ..services.auth_service import decode_token
-from ..services.blockchain_service import register_on_chain, verify_on_chain
+from ..services.blockchain_service import register_on_chain, verify_on_chain, find_registration_tx
 from ..services.image_service import sha256_file, phash_file, similarity_percent, validate_image, InvalidImageError
 from ..services.rate_limit import VERIFY_LIMITER
 
@@ -81,7 +81,13 @@ async def register_artwork(file: UploadFile = File(...), title: str = Form("Unti
         db.add(row); db.commit(); db.refresh(row)
         try:
             row.tx_hash = await run_in_threadpool(register_on_chain, sha, user.wallet_address, row.originality, f"mediaguard://artworks/{row.id}")
-            row.status = "protected" if row.tx_hash or await run_in_threadpool(_safe_verify_on_chain, sha) else "approved_local"
+            if row.tx_hash:
+                row.status = "protected"
+            elif await run_in_threadpool(_safe_verify_on_chain, sha):
+                row.tx_hash = await run_in_threadpool(find_registration_tx, sha)
+                row.status = "protected"
+            else:
+                row.status = "approved_local"
         except Exception:
             logger.exception("Ghi artwork %s lên blockchain thất bại", row.id)
             row.status = "chain_failed"
@@ -122,12 +128,19 @@ async def retry_chain(artwork_id: int, user: User = Depends(current_user), db: S
         # Timeout trước đây có thể chỉ là receipt timeout trong khi tx đã được mined.
         # Kiểm tra chain trước khi tạo giao dịch mới để tránh duplicate/revert.
         if await run_in_threadpool(verify_on_chain, row.sha256):
+            row.tx_hash = await run_in_threadpool(find_registration_tx, row.sha256)
             row.status = "protected"
             db.commit(); db.refresh(row)
             return parse_artwork(row)
         row.status = "pending_chain"; db.commit()
         row.tx_hash = await run_in_threadpool(register_on_chain, row.sha256, user.wallet_address, row.originality, f"mediaguard://artworks/{row.id}")
-        row.status = "protected" if row.tx_hash or await run_in_threadpool(_safe_verify_on_chain, row.sha256) else "approved_local"
+        if row.tx_hash:
+            row.status = "protected"
+        elif await run_in_threadpool(_safe_verify_on_chain, row.sha256):
+            row.tx_hash = await run_in_threadpool(find_registration_tx, row.sha256)
+            row.status = "protected"
+        else:
+            row.status = "approved_local"
     except Exception:
         logger.exception("Retry ghi artwork %s lên blockchain thất bại", row.id)
         row.status = "chain_failed"

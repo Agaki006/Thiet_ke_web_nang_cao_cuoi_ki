@@ -58,3 +58,22 @@ def verify_on_chain(file_hash: str) -> bool:
     if client is None: return False
     _, contract, _ = client
     return bool(contract.functions.verify(bytes.fromhex(file_hash)).call()[0])
+
+def find_registration_tx(file_hash: str) -> str | None:
+    """Find the original registration tx for a recovered on-chain certificate."""
+    client = _client()
+    if client is None: return None
+    w3, contract, _ = client
+    event_topic = Web3.keccak(text="ArtworkRegistered(bytes32,address,uint8,string,uint256)")
+    start_block = int(os.getenv("CHAIN_START_BLOCK", "0"))
+    logs = w3.eth.get_logs({
+        "fromBlock": start_block,
+        "toBlock": "latest",
+        "address": contract.address,
+        "topics": [event_topic, "0x" + file_hash.removeprefix("0x")],
+    })
+    if not logs:
+        return None
+    tx_hash = logs[-1]["transactionHash"]
+    value = tx_hash.hex()
+    return value if value.startswith("0x") else "0x" + value

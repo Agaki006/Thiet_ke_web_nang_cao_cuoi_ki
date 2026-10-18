@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+import time
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -35,6 +36,7 @@ class FakeEth:
         return FakeTxHash()
 
     def wait_for_transaction_receipt(self, tx_hash, timeout):
+        time.sleep(0.05)
         return SimpleNamespace(status=1)
 
 
@@ -56,6 +58,17 @@ class FakeContract:
 
     def register(self, *args):
         return SimpleNamespace(build_transaction=lambda tx: tx)
+
+
+def test_find_registration_tx_reads_event_log(monkeypatch):
+    class LogEth:
+        def get_logs(self, query):
+            assert query["topics"][1].startswith("0x")
+            return [{"transactionHash": FakeTxHash()}]
+
+    client = (SimpleNamespace(eth=LogEth()), SimpleNamespace(address="0x0000000000000000000000000000000000000002"), "private-key")
+    monkeypatch.setattr(blockchain_service, "_client", lambda: client)
+    assert blockchain_service.find_registration_tx("cd" * 32) == "0x" + "ab" * 32
 
 
 def test_register_on_chain_broadcasts_once_for_same_hash(monkeypatch):
