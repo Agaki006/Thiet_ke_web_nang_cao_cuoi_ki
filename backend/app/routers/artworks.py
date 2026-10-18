@@ -59,6 +59,13 @@ def _safe_verify_on_chain(file_hash: str) -> bool:
         logger.exception("Không thể verify artwork %s trên blockchain", file_hash)
         return False
 
+def _safe_find_registration_tx(file_hash: str) -> str | None:
+    try:
+        return find_registration_tx(file_hash)
+    except Exception:
+        logger.exception("Không thể truy hồi tx_hash của artwork %s", file_hash)
+        return None
+
 @router.get("/artworks", response_model=list[ArtworkOut])
 def list_artworks(db: Session = Depends(get_db)):
     return [parse_artwork(x) for x in db.scalars(select(Artwork).order_by(Artwork.created_at.desc())).all()]
@@ -84,7 +91,7 @@ async def register_artwork(file: UploadFile = File(...), title: str = Form("Unti
             if row.tx_hash:
                 row.status = "protected"
             elif await run_in_threadpool(_safe_verify_on_chain, sha):
-                row.tx_hash = await run_in_threadpool(find_registration_tx, sha)
+                row.tx_hash = await run_in_threadpool(_safe_find_registration_tx, sha)
                 row.status = "protected"
             else:
                 row.status = "approved_local"
@@ -128,7 +135,7 @@ async def retry_chain(artwork_id: int, user: User = Depends(current_user), db: S
         # Timeout trước đây có thể chỉ là receipt timeout trong khi tx đã được mined.
         # Kiểm tra chain trước khi tạo giao dịch mới để tránh duplicate/revert.
         if await run_in_threadpool(verify_on_chain, row.sha256):
-            row.tx_hash = await run_in_threadpool(find_registration_tx, row.sha256)
+            row.tx_hash = await run_in_threadpool(_safe_find_registration_tx, row.sha256)
             row.status = "protected"
             db.commit(); db.refresh(row)
             return parse_artwork(row)
@@ -137,7 +144,7 @@ async def retry_chain(artwork_id: int, user: User = Depends(current_user), db: S
         if row.tx_hash:
             row.status = "protected"
         elif await run_in_threadpool(_safe_verify_on_chain, row.sha256):
-            row.tx_hash = await run_in_threadpool(find_registration_tx, row.sha256)
+            row.tx_hash = await run_in_threadpool(_safe_find_registration_tx, row.sha256)
             row.status = "protected"
         else:
             row.status = "approved_local"

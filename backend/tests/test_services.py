@@ -7,6 +7,7 @@ import pytest
 
 from app.services.image_service import InvalidImageError, phash_file, sha256_file, validate_image
 from app.services.wallet_service import build_message, recover_address
+from app.routers import artworks as artworks_router
 
 
 def test_image_hashes_and_invalid_file(tmp_path: Path):
@@ -28,3 +29,11 @@ def test_wallet_signature_recovers_expected_address():
     signed = Account.sign_message(encode_defunct(text=message), account.key)
     recovered = recover_address(message, signed.signature.hex())
     assert recovered.lower() == account.address.lower()
+
+
+def test_safe_registration_tx_lookup_returns_none_on_rpc_error(monkeypatch):
+    def fail_lookup(_file_hash):
+        raise RuntimeError("RPC unavailable")
+
+    monkeypatch.setattr(artworks_router, "find_registration_tx", fail_lookup)
+    assert artworks_router._safe_find_registration_tx("ab" * 32) is None
