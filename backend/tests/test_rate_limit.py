@@ -1,4 +1,5 @@
 from app.services.rate_limit import SlidingWindowLimiter
+from concurrent.futures import ThreadPoolExecutor
 
 
 def test_limiter_rejects_and_prunes_expired_bucket(monkeypatch):
@@ -23,3 +24,10 @@ def test_limiter_bounds_stale_keys(monkeypatch):
     clock[0] = 30.0
     limiter.allow("c")
     assert len(limiter._hits) <= 2
+
+
+def test_limiter_allows_at_most_limit_under_concurrency():
+    limiter = SlidingWindowLimiter(limit=5, window_seconds=60)
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        results = list(pool.map(lambda _: limiter.allow("same-client"), range(20)))
+    assert sum(results) == 5

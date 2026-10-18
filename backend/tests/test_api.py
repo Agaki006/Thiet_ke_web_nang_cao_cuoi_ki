@@ -1,6 +1,7 @@
 import io
 import os
 from datetime import datetime, timezone
+from uuid import uuid4
 from pathlib import Path
 
 os.environ.setdefault("DATABASE_URL", "sqlite:////tmp/mediaguard-api-tests.db")
@@ -40,14 +41,16 @@ def test_auth_and_verify_endpoint(monkeypatch):
 
 def test_retry_chain_updates_existing_artwork(monkeypatch):
     db = SessionLocal()
-    user = User(email="retry@example.com", password_hash=hash_password("correct-horse-battery-staple"), wallet_address="0x0000000000000000000000000000000000000001", wallet_verified_at=datetime.now(timezone.utc))
+    email = f"retry-{uuid4().hex}@example.com"
+    password = "correct-horse-battery-staple"
+    user = User(email=email, password_hash=hash_password(password), wallet_address="0x0000000000000000000000000000000000000001", wallet_verified_at=datetime.now(timezone.utc))
     db.add(user); db.commit(); db.refresh(user)
-    artwork = Artwork(owner_id=user.id, file_path="/tmp/artwork", sha256="11" * 32, phash="00" * 8, title="Retry", originality=100, status="chain_failed")
+    artwork = Artwork(owner_id=user.id, file_path="/tmp/artwork", sha256=uuid4().hex * 2, phash="00" * 8, title="Retry", originality=100, status="chain_failed")
     db.add(artwork); db.commit(); db.refresh(artwork)
     user_id, artwork_id = user.id, artwork.id
     db.close()
 
-    token = client.post("/auth/login", json={"email": "retry@example.com", "password": "correct-horse-battery-staple"}).json()["access_token"]
+    token = client.post("/auth/login", json={"email": email, "password": password}).json()["access_token"]
     monkeypatch.setattr(artwork_router, "verify_on_chain", lambda file_hash: False)
     monkeypatch.setattr(artwork_router, "register_on_chain", lambda *args: "0x" + "ab" * 32)
     response = client.post(f"/artworks/{artwork_id}/retry-chain", headers={"Authorization": f"Bearer {token}"})
