@@ -26,6 +26,8 @@ npm run dev
 
 Mở http://localhost:5173. Vite proxy `/api` tới `http://localhost:8000`; nếu backend chạy ở URL khác, tạo `frontend/.env.local` với `VITE_API_BASE=https://your-api.example.com`. Frontend có các route `/`, `/protect` và `/verify`, đăng nhập/đăng ký, kết nối MetaMask, ký nonce, upload bảo hộ, gallery và verify công khai.
 
+Gallery là public exhibition: chỉ hiển thị artwork ở trạng thái `protected` hoặc `approved_local`, kèm ảnh đã xác minh, trạng thái proof, ví tác giả và nút liên hệ qua email. Email đăng ký được hiển thị công khai dưới dạng `mailto:`; nếu triển khai thật nên tách thêm trường email liên hệ công khai có cơ chế opt-in.
+
 Trạng thái artwork: `pending_chain`, `protected`, `approved_local`, `chain_failed`. Nếu request bị ngắt sau khi broadcast, gọi `POST /artworks/{id}/retry-chain`; backend sẽ verify SHA-256 trên chain trước khi quyết định gửi transaction mới.
 
 ## Smart contract

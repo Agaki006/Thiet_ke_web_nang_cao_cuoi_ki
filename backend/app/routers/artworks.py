@@ -30,7 +30,7 @@ def current_user(token: str = Depends(oauth2), db: Session = Depends(get_db)) ->
     return user
 
 def parse_artwork(row: Artwork) -> ArtworkOut:
-    return ArtworkOut(id=row.id, title=row.title, description=row.description, tags=json.loads(row.tags), sha256=row.sha256, phash=row.phash, originality=row.originality, status=row.status, tx_hash=row.tx_hash, created_at=row.created_at)
+    return ArtworkOut(id=row.id, title=row.title, description=row.description, tags=json.loads(row.tags), sha256=row.sha256, phash=row.phash, originality=row.originality, status=row.status, tx_hash=row.tx_hash, image_url=f"/api/media/{Path(row.file_path).name}", author_email=row.owner.email, author_wallet=row.owner.wallet_address, created_at=row.created_at)
 
 async def save_upload(file: UploadFile, prefix: str) -> Path:
     if file.content_type not in ALLOWED: raise HTTPException(415, "Chỉ nhận JPEG, PNG hoặc WebP")

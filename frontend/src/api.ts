@@ -8,6 +8,9 @@ export type Artwork = {
   originality: number
   status: string
   tx_hash: string | null
+  image_url: string
+  author_email: string
+  author_wallet: string | null
   created_at: string
 }
 

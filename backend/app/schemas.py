@@ -34,6 +34,9 @@ class ArtworkOut(BaseModel):
     originality: int
     status: str
     tx_hash: str | None
+    image_url: str
+    author_email: EmailStr
+    author_wallet: str | None
     created_at: datetime
 
 class VerifyResult(BaseModel):
