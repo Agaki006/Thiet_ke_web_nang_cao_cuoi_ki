@@ -14,6 +14,14 @@ cp ../.env.example .env
 
 API docs: http://localhost:8000/docs
 
+Để tạo exhibition demo sạch và chuyên nghiệp gồm 8 tác phẩm mẫu, chạy từ thư mục `backend`:
+
+```bash
+python scripts/seed_demo.py --reset-demo
+```
+
+Script tạo 3 ảnh mẫu và 5 written works mẫu, không commit file upload vào Git. Tài khoản demo dùng cho metadata là `demo.*@mediaguard.local`; không dùng mật khẩu demo trên môi trường thật.
+
 Luồng đăng ký: đăng nhập, gọi `POST /auth/wallet/nonce` bằng Bearer JWT, ký message trả về, gọi `POST /auth/wallet/verify`, sau đó upload vào `POST /artworks/register`. Backend stream giới hạn kích thước, validate ảnh thật, tính SHA-256/pHash và gọi `register` on-chain nếu Web3 được cấu hình. `POST /verify` đối chiếu local và chain.
 
 ## Chạy frontend
