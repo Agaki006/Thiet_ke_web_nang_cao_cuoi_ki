@@ -57,5 +57,6 @@ class VerifyResult(BaseModel):
     artwork_id: int | None = None
     similarity_percent: float = 0
     suspected_artwork_id: int | None = None
+    suspected_artwork_title: str | None = None
     on_chain_registered: bool = False
     message: str

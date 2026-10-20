@@ -221,7 +221,7 @@ async def verify_artwork(request: Request, file: UploadFile = File(...), db: Ses
             for row in db.scalars(select(Artwork).where(Artwork.media_type == "written")).all():
                 score = text_similarity(content_text, row.content_text)
                 if score > best: best, nearest = score, row
-        return VerifyResult(sha256=sha, registered=False, suspected_artwork_id=nearest.id if nearest else None, similarity_percent=best, message=f"Không trùng tuyệt đối; giống gần nhất {best}%" if nearest else "Chưa có dữ liệu đối chiếu", media_type=media_type)
+        return VerifyResult(sha256=sha, registered=False, suspected_artwork_id=nearest.id if nearest else None, suspected_artwork_title=nearest.title if nearest else None, similarity_percent=best, message=f"Không trùng tuyệt đối; giống gần nhất {best}%" if nearest else "Chưa có dữ liệu đối chiếu", media_type=media_type)
     finally:
         target.unlink(missing_ok=True)
 

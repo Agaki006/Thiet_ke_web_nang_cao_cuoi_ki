@@ -31,6 +31,7 @@ export type VerifyResult = {
   artwork_id?: number | null
   similarity_percent: number
   suspected_artwork_id?: number | null
+  suspected_artwork_title?: string | null
   on_chain_registered: boolean
   message: string
   media_type: 'image' | 'written'
