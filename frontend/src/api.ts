@@ -32,6 +32,14 @@ export type VerifyResult = {
   similarity_percent: number
   suspected_artwork_id?: number | null
   suspected_artwork_title?: string | null
+  matched_title?: string | null
+  matched_wallet?: string | null
+  matched_created_at?: string | null
+  matched_status?: string | null
+  matched_tx_hash?: string | null
+  matched_image_url?: string | null
+  matched_block_number?: number | null
+  matched_block_timestamp?: string | null
   on_chain_registered: boolean
   message: string
   media_type: 'image' | 'written'

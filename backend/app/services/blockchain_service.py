@@ -77,3 +77,19 @@ def find_registration_tx(file_hash: str) -> str | None:
     tx_hash = logs[-1]["transactionHash"]
     value = tx_hash.hex()
     return value if value.startswith("0x") else "0x" + value
+
+
+def get_transaction_proof(tx_hash: str) -> dict[str, int | None] | None:
+    """Return block number and block timestamp for a confirmed transaction."""
+    if not tx_hash:
+        return None
+    client = _client()
+    if client is None:
+        return None
+    w3, _, _ = client
+    receipt = w3.eth.get_transaction_receipt(tx_hash)
+    if not receipt or receipt.get("status") != 1:
+        return None
+    block_number = int(receipt["blockNumber"])
+    block = w3.eth.get_block(block_number)
+    return {"block_number": block_number, "block_timestamp": int(block["timestamp"])}

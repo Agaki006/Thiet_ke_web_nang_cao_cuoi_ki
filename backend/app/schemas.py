@@ -58,5 +58,13 @@ class VerifyResult(BaseModel):
     similarity_percent: float = 0
     suspected_artwork_id: int | None = None
     suspected_artwork_title: str | None = None
+    matched_title: str | None = None
+    matched_wallet: str | None = None
+    matched_created_at: datetime | None = None
+    matched_status: str | None = None
+    matched_tx_hash: str | None = None
+    matched_image_url: str | None = None
+    matched_block_number: int | None = None
+    matched_block_timestamp: datetime | None = None
     on_chain_registered: bool = False
     message: str

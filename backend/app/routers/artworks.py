@@ -1,4 +1,5 @@
 import json, logging, os, uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -13,7 +14,7 @@ from ..db import get_db
 from ..models import Artwork, User
 from ..schemas import ArtworkOut, VerifyResult
 from ..services.auth_service import decode_token
-from ..services.blockchain_service import find_registration_tx, register_on_chain, verify_on_chain
+from ..services.blockchain_service import find_registration_tx, get_transaction_proof, register_on_chain, verify_on_chain
 from ..services.image_service import InvalidImageError, phash_file, sha256_file, similarity_percent, validate_image
 from ..services.rate_limit import VERIFY_LIMITER
 from ..services.text_service import InvalidWrittenWorkError, extract_written_content, text_similarity
@@ -104,6 +105,14 @@ def _safe_find_registration_tx(file_hash: str) -> str | None:
         return find_registration_tx(file_hash)
     except Exception:
         logger.exception("Không thể truy hồi tx_hash của artwork %s", file_hash)
+        return None
+
+
+def _safe_transaction_proof(tx_hash: str | None) -> dict[str, int | None] | None:
+    try:
+        return get_transaction_proof(tx_hash) if tx_hash else None
+    except Exception:
+        logger.exception("Không thể đọc bằng chứng transaction %s", tx_hash)
         return None
 
 
@@ -205,7 +214,17 @@ async def verify_artwork(request: Request, file: UploadFile = File(...), db: Ses
         sha = sha256_file(target)
         exact = db.scalar(select(Artwork).where(Artwork.sha256 == sha))
         if exact:
-            return VerifyResult(sha256=sha, registered=True, artwork_id=exact.id, similarity_percent=100, on_chain_registered=await run_in_threadpool(_safe_verify_on_chain, sha), message="Đã xác minh chính xác", media_type=media_type)
+            on_chain = await run_in_threadpool(_safe_verify_on_chain, sha)
+            proof = await run_in_threadpool(_safe_transaction_proof, exact.tx_hash) if on_chain else None
+            return VerifyResult(
+                sha256=sha, registered=True, artwork_id=exact.id, similarity_percent=100,
+                on_chain_registered=on_chain, message="Mã SHA-256 của file khớp hoàn toàn với tác phẩm đã đăng ký. File này giống hệt bản gốc.", media_type=media_type,
+                matched_title=exact.title, matched_wallet=exact.owner.wallet_address, matched_created_at=exact.created_at,
+                matched_status=exact.status, matched_tx_hash=exact.tx_hash,
+                matched_image_url=f"/api/media/{Path(exact.file_path).name}" if exact.media_type == "image" else None,
+                matched_block_number=proof.get("block_number") if proof else None,
+                matched_block_timestamp=(datetime.fromtimestamp(proof["block_timestamp"], timezone.utc) if proof and proof.get("block_timestamp") else None),
+            )
         nearest, best = None, 0.0
         if media_type == "image":
             phash = phash_file(target)
