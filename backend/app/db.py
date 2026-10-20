@@ -35,3 +35,6 @@ def ensure_sqlite_columns():
         for name, sql_type in additions.items():
             if name not in columns:
                 connection.execute(text(f"ALTER TABLE users ADD COLUMN {name} {sql_type}"))
+        artwork_columns = {row["name"] for row in inspect(engine).get_columns("artworks")}
+        if "show_contact_email" not in artwork_columns:
+            connection.execute(text("ALTER TABLE artworks ADD COLUMN show_contact_email BOOLEAN NOT NULL DEFAULT 0"))

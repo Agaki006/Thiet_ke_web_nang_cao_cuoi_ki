@@ -9,7 +9,7 @@ export type Artwork = {
   status: string
   tx_hash: string | null
   image_url: string
-  author_email: string
+  author_email: string | null
   author_wallet: string | null
   created_at: string
 }
@@ -87,9 +87,9 @@ export const api = {
   listArtworks: () => request<Artwork[]>('/artworks'),
   walletNonce: () => request<{ nonce: string; message: string; expires_at: string }>('/auth/wallet/nonce', { method: 'POST' }),
   walletVerify: (wallet_address: string, signature: string, nonce: string) => request<{ access_token: string }>('/auth/wallet/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet_address, signature, nonce }) }),
-  registerArtwork: (file: File, title: string, description: string, tags: string[]) => {
+  registerArtwork: (file: File, title: string, description: string, tags: string[], showContactEmail: boolean) => {
     const form = new FormData()
-    form.append('file', file); form.append('title', title); form.append('description', description); form.append('tags', JSON.stringify(tags))
+    form.append('file', file); form.append('title', title); form.append('description', description); form.append('tags', JSON.stringify(tags)); form.append('show_contact_email', String(showContactEmail))
     return request<Artwork>('/artworks/register', { method: 'POST', body: form })
   },
   verify: (file: File) => {

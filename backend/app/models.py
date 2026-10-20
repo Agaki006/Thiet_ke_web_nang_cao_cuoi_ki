@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
@@ -32,5 +32,6 @@ class Artwork(Base):
     originality: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(30), default="pending")
     tx_hash: Mapped[str | None] = mapped_column(String(66), nullable=True)
+    show_contact_email: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     owner: Mapped[User] = relationship(back_populates="artworks")

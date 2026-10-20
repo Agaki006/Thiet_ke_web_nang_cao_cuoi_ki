@@ -35,7 +35,7 @@ class ArtworkOut(BaseModel):
     status: str
     tx_hash: str | None
     image_url: str
-    author_email: EmailStr
+    author_email: EmailStr | None
     author_wallet: str | None
     created_at: datetime
 

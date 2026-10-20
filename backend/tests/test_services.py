@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pathlib import Path
 
 from eth_account import Account
@@ -8,6 +9,7 @@ import pytest
 from app.services.image_service import InvalidImageError, phash_file, sha256_file, validate_image
 from app.services.wallet_service import build_message, recover_address
 from app.routers import artworks as artworks_router
+from app.models import Artwork, User
 
 
 def test_image_hashes_and_invalid_file(tmp_path: Path):
@@ -37,3 +39,11 @@ def test_safe_registration_tx_lookup_returns_none_on_rpc_error(monkeypatch):
 
     monkeypatch.setattr(artworks_router, "find_registration_tx", fail_lookup)
     assert artworks_router._safe_find_registration_tx("ab" * 32) is None
+
+
+def test_contact_email_is_opt_in():
+    owner = User(email="artist@gmail.com", password_hash="hash")
+    artwork = Artwork(id=1, owner=owner, owner_id=1, file_path="uploads/artwork_demo", sha256="ab" * 32, phash="cd" * 8, title="Demo", description="", tags="[]", originality=100, status="approved_local", created_at=datetime.now(timezone.utc), show_contact_email=False)
+    assert artworks_router.parse_artwork(artwork).author_email is None
+    artwork.show_contact_email = True
+    assert artworks_router.parse_artwork(artwork).author_email == "artist@gmail.com"
