@@ -26,7 +26,7 @@ npm run dev
 
 Mở http://localhost:5173. Vite proxy `/api` tới `http://localhost:8000`; nếu backend chạy ở URL khác, tạo `frontend/.env.local` với `VITE_API_BASE=https://your-api.example.com`. Frontend có các route `/`, `/protect` và `/verify`, đăng nhập/đăng ký, kết nối MetaMask, ký nonce, upload bảo hộ, gallery và verify công khai.
 
-Gallery là public exhibition: chỉ hiển thị artwork ở trạng thái `protected` hoặc `approved_local`, kèm ảnh đã xác minh và trạng thái proof. Khi upload, tác giả có thể tích checkbox **Hiển thị Gmail liên hệ trên exhibition**; mặc định email bị ẩn. Nếu bật, Gallery mở sẵn Gmail compose đến email đăng ký của tác giả. Backend tự migrate thêm cờ `show_contact_email` cho SQLite cũ.
+Gallery là public exhibition: chỉ hiển thị tác phẩm public ở trạng thái `protected` hoặc `approved_local`, kèm bằng chứng xác minh. Ngoài ảnh, form hỗ trợ **TXT, Markdown và PDF text**. Written work có bìa typography, loại tác phẩm, ngôn ngữ, số từ/trang, license và modal chi tiết. Tác giả có thể chọn preview 400 từ, cho phép tải file và tích checkbox **Hiển thị Gmail liên hệ trên exhibition**; tất cả đều mặc định tắt. Backend tự migrate các cột written work cho SQLite cũ.
 
 Trạng thái artwork: `pending_chain`, `protected`, `approved_local`, `chain_failed`. Nếu request bị ngắt sau khi broadcast, gọi `POST /artworks/{id}/retry-chain`; backend sẽ verify SHA-256 trên chain trước khi quyết định gửi transaction mới.
 

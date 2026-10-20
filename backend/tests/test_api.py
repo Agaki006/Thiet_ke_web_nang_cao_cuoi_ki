@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from PIL import Image
+from sqlalchemy import select
 
 from app.main import app
 from app.db import SessionLocal
@@ -97,3 +98,29 @@ def test_metamask_signature_and_nonce_errors():
     })
     assert replayed.status_code == 400
     assert "Nonce" in replayed.json()["detail"]
+
+
+def test_register_written_work_with_public_preview(monkeypatch):
+    email = f"writer-{uuid4().hex}@example.com"
+    password = "correct-horse-battery-staple"
+    register = client.post("/auth/register", json={"email": email, "password": password})
+    assert register.status_code == 201, register.text
+    token = register.json()["access_token"]
+    db = SessionLocal()
+    user = db.scalar(select(User).where(User.email == email))
+    user.wallet_address = "0x0000000000000000000000000000000000000001"
+    user.wallet_verified_at = datetime.now(timezone.utc)
+    db.commit(); db.close()
+    monkeypatch.setattr(artwork_router, "register_on_chain", lambda *args: None)
+    monkeypatch.setattr(artwork_router, "verify_on_chain", lambda *args: False)
+    content = "Những ngày bên sông Hàn là một bài viết thử nghiệm. " * 12
+    response = client.post("/artworks/register", headers={"Authorization": f"Bearer {token}"}, files={"file": ("essay.txt", content.encode(), "text/plain")}, data={
+        "title": "Những ngày bên sông Hàn", "media_type": "written", "work_type": "essay", "language": "Vietnamese",
+        "show_public_preview": "true", "show_contact_email": "true", "license": "All rights reserved",
+    })
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["media_type"] == "written"
+    assert body["preview_text"].startswith("Những ngày")
+    assert body["author_email"] == email
+    assert body["download_url"] is None

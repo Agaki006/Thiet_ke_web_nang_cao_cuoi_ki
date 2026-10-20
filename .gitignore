@@ -15,3 +15,7 @@ backend/uploads/*
 # Python
 __pycache__/
 *.py[cod]
+
+# Runtime uploads when backend is started from repository root
+uploads/*
+!uploads/.gitkeep

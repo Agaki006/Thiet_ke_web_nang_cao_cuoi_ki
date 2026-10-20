@@ -34,13 +34,25 @@ class ArtworkOut(BaseModel):
     originality: int
     status: str
     tx_hash: str | None
-    image_url: str
+    image_url: str | None
+    download_url: str | None
     author_email: EmailStr | None
     author_wallet: str | None
+    media_type: str
+    work_type: str | None
+    language: str | None
+    word_count: int | None
+    page_count: int | None
+    preview_text: str | None
+    license: str
+    visibility: str
+    show_public_preview: bool
+    allow_download: bool
     created_at: datetime
 
 class VerifyResult(BaseModel):
     sha256: str
+    media_type: str = "image"
     registered: bool
     artwork_id: int | None = None
     similarity_percent: float = 0

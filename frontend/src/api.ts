@@ -8,9 +8,20 @@ export type Artwork = {
   originality: number
   status: string
   tx_hash: string | null
-  image_url: string
+  image_url: string | null
+  download_url: string | null
   author_email: string | null
   author_wallet: string | null
+  media_type: 'image' | 'written'
+  work_type: string | null
+  language: string | null
+  word_count: number | null
+  page_count: number | null
+  preview_text: string | null
+  license: string
+  visibility: string
+  show_public_preview: boolean
+  allow_download: boolean
   created_at: string
 }
 
@@ -22,6 +33,7 @@ export type VerifyResult = {
   suspected_artwork_id?: number | null
   on_chain_registered: boolean
   message: string
+  media_type: 'image' | 'written'
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
@@ -87,9 +99,9 @@ export const api = {
   listArtworks: () => request<Artwork[]>('/artworks'),
   walletNonce: () => request<{ nonce: string; message: string; expires_at: string }>('/auth/wallet/nonce', { method: 'POST' }),
   walletVerify: (wallet_address: string, signature: string, nonce: string) => request<{ access_token: string }>('/auth/wallet/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet_address, signature, nonce }) }),
-  registerArtwork: (file: File, title: string, description: string, tags: string[], showContactEmail: boolean) => {
+  registerArtwork: (file: File, title: string, description: string, tags: string[], showContactEmail: boolean, options: { mediaType: string; workType: string; language: string; license: string; visibility: string; showPublicPreview: boolean; allowDownload: boolean }) => {
     const form = new FormData()
-    form.append('file', file); form.append('title', title); form.append('description', description); form.append('tags', JSON.stringify(tags)); form.append('show_contact_email', String(showContactEmail))
+    form.append('file', file); form.append('title', title); form.append('description', description); form.append('tags', JSON.stringify(tags)); form.append('show_contact_email', String(showContactEmail)); form.append('media_type', options.mediaType); form.append('work_type', options.workType); form.append('language', options.language); form.append('license', options.license); form.append('visibility', options.visibility); form.append('show_public_preview', String(options.showPublicPreview)); form.append('allow_download', String(options.allowDownload))
     return request<Artwork>('/artworks/register', { method: 'POST', body: form })
   },
   verify: (file: File) => {

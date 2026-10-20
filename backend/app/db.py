@@ -36,5 +36,20 @@ def ensure_sqlite_columns():
             if name not in columns:
                 connection.execute(text(f"ALTER TABLE users ADD COLUMN {name} {sql_type}"))
         artwork_columns = {row["name"] for row in inspect(engine).get_columns("artworks")}
-        if "show_contact_email" not in artwork_columns:
-            connection.execute(text("ALTER TABLE artworks ADD COLUMN show_contact_email BOOLEAN NOT NULL DEFAULT 0"))
+        artwork_additions = {
+            "show_contact_email": "BOOLEAN NOT NULL DEFAULT 0",
+            "media_type": "VARCHAR(20) NOT NULL DEFAULT 'image'",
+            "work_type": "VARCHAR(30)",
+            "language": "VARCHAR(30)",
+            "word_count": "INTEGER",
+            "page_count": "INTEGER",
+            "content_text": "TEXT NOT NULL DEFAULT ''",
+            "preview_text": "TEXT",
+            "license": "VARCHAR(80) NOT NULL DEFAULT 'All rights reserved'",
+            "visibility": "VARCHAR(20) NOT NULL DEFAULT 'public'",
+            "show_public_preview": "BOOLEAN NOT NULL DEFAULT 0",
+            "allow_download": "BOOLEAN NOT NULL DEFAULT 0",
+        }
+        for name, sql_type in artwork_additions.items():
+            if name not in artwork_columns:
+                connection.execute(text(f"ALTER TABLE artworks ADD COLUMN {name} {sql_type}"))
