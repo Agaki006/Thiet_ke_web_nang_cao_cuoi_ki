@@ -1,51 +1,143 @@
 # MediaGuard
 
-Đăng ký bản quyền ảnh số bằng SHA-256, pHash, xác thực ví MetaMask và chứng nhận on-chain trên Ethereum Sepolia.
+MediaGuard là ứng dụng đăng ký và xác minh quyền sở hữu tác phẩm số. Hệ thống sử dụng SHA-256, pHash, xác thực ví MetaMask và bằng chứng on-chain trên Ethereum Sepolia. Ứng dụng hỗ trợ cả hình ảnh và written work dạng TXT, Markdown hoặc PDF text.
 
-## Link deploy
+## Link demo đã deploy
 
-- Frontend: https://web-project-sigma-five.vercel.app
-- Backend API: https://web-project-q18h.onrender.com
-- API documentation: https://web-project-q18h.onrender.com/docs
-- Health check: https://web-project-q18h.onrender.com/health
+- **Frontend:** https://web-project-sigma-five.vercel.app
+- **Backend API:** https://web-project-q18h.onrender.com
+- **API documentation:** https://web-project-q18h.onrender.com/docs
+- **Health check:** https://web-project-q18h.onrender.com/health
 
-Frontend dùng Vercel rewrite `/api/*` tới backend Render. Khi backend Render ở trạng thái sleep, request đầu tiên có thể cần thêm thời gian để khởi động.
+Frontend production dùng Vercel rewrite `/api/*` tới backend Render. Render Free có thể sleep sau thời gian không hoạt động; request đầu tiên đôi khi cần khoảng 30–60 giây để đánh thức backend.
 
-## Chạy local bằng Docker Compose
+> Các link trên Internet dùng cho demo/nộp bài. Docker Compose bên dưới chỉ chạy một bản **local độc lập** trên máy của bạn, không khởi động Vercel hoặc Render.
 
-Yêu cầu: Docker Desktop hoặc Docker Engine có Docker Compose.
+## Chạy toàn bộ ứng dụng bằng Docker với một lệnh
+
+### Yêu cầu
+
+Cài một trong các lựa chọn sau:
+
+- Docker Desktop trên Windows/macOS.
+- Docker Engine và Docker Compose plugin trên Linux.
+- Kiểm tra cài đặt:
 
 ```bash
-cp .env.example .env
-# Chỉnh JWT_SECRET và các biến blockchain trong .env nếu cần
-docker compose up --build
+docker --version
+docker compose version
 ```
 
-Để chuẩn bị file môi trường và khởi động toàn bộ hệ thống bằng một dòng lệnh:
+### Lệnh chạy một lần duy nhất
+
+Mở Terminal tại **thư mục gốc của repository** — nơi có file `docker-compose.yml` — rồi chạy:
 
 ```bash
-cp .env.example .env && docker compose up --build
+test -f .env || cp .env.example .env; docker compose up --build
 ```
 
-Docker Compose chỉ phục vụ chạy **local** trên máy đang thực thi lệnh; không chạy Vercel hay Render. Sau khi khởi động, mở frontend local tại `http://localhost:5173`. Frontend local gọi backend local tại `http://localhost:8000`.
+Trên Windows PowerShell, dùng:
 
-Sau khi khởi động:
+```powershell
+if (!(Test-Path .env)) { Copy-Item .env.example .env }; docker compose up --build
+```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- Swagger docs: http://localhost:8000/docs
-- Health check: http://localhost:8000/health
+Lệnh trên thực hiện ba việc:
 
-Database SQLite và file upload được giữ trong Docker volume `backend_data`. Dừng stack bằng `Ctrl+C`; chạy nền bằng `docker compose up --build -d` và dừng bằng `docker compose down`.
+1. Tạo `.env` từ `.env.example` nếu máy chưa có file `.env`.
+2. Build image cho backend và frontend.
+3. Khởi động hai container, trong đó frontend chỉ khởi động sau khi healthcheck backend đạt yêu cầu.
 
-Các link deploy trên Internet dùng cho demo và nộp bài, độc lập với Docker Compose local:
+Không nên dùng `cp .env.example .env` mỗi lần chạy vì lệnh đó sẽ ghi đè các cấu hình bạn đã chỉnh trong `.env`. Lệnh ở trên chỉ tạo file khi file chưa tồn tại.
 
-- Frontend Vercel: https://web-project-sigma-five.vercel.app
-- Backend Render: https://web-project-q18h.onrender.com
-- API docs production: https://web-project-q18h.onrender.com/docs
-- Health check production: https://web-project-q18h.onrender.com/health
+### Các URL sau khi chạy
 
-## Chạy backend
+Khi Terminal hiển thị log của hai service, mở:
+
+| Thành phần | URL | Mục đích |
+|---|---|---|
+| Frontend | http://localhost:5173 | Giao diện MediaGuard |
+| Backend API | http://localhost:8000 | API local |
+| Swagger UI | http://localhost:8000/docs | Xem và thử API |
+| Health check | http://localhost:8000/health | Kiểm tra backend đã sẵn sàng |
+
+Giữ nguyên cửa sổ Terminal để các container tiếp tục chạy. Nhấn `Ctrl+C` để dừng stack.
+
+### Chạy nền thay vì chiếm Terminal
+
+```bash
+docker compose up --build -d
+```
+
+Xem log:
+
+```bash
+docker compose logs -f
+```
+
+Dừng container:
+
+```bash
+docker compose down
+```
+
+Dừng và xóa cả database/uploads local đã lưu trong volume:
+
+```bash
+docker compose down -v
+```
+
+> Chỉ dùng `down -v` khi muốn reset hoàn toàn dữ liệu local. Volume `backend_data` chứa SQLite database và file upload.
+
+## Cấu hình `.env` cho chạy local
+
+Bản mẫu `.env.example` đã có sẵn trong repository. Với mục đích xem giao diện, chạy API và làm demo local, có thể bắt đầu bằng file được tạo tự động từ mẫu.
+
+Nếu muốn ghi bằng chứng lên Ethereum Sepolia, cần cấu hình thêm các biến blockchain trong `.env`:
+
+```dotenv
+WEB3_RPC_URL=https://sepolia.infura.io/v3/YOUR_PROJECT_ID
+BACKEND_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+CONTRACT_ADDRESS=0xYOUR_DEPLOYED_CONTRACT_ADDRESS
+CHAIN_ID=11155111
+```
+
+Các giá trị secret/private key chỉ được đặt trong `.env` local hoặc secret manager. Không commit `.env`, private key, API key hoặc file upload lên GitHub.
+
+Compose tự ghi đè một số biến để hai container kết nối đúng với nhau:
+
+- Backend database: `/data/mediaguard.db`.
+- Backend upload directory: `/data/uploads`.
+- Frontend API base: `http://localhost:8000`.
+- Backend CORS origin: `http://localhost:5173`.
+
+## Kiểm tra sau khi khởi động
+
+1. Mở http://localhost:8000/health. Kết quả HTTP `200` cho biết backend đã sẵn sàng.
+2. Mở http://localhost:8000/docs để xem Swagger UI.
+3. Mở http://localhost:5173 để dùng giao diện.
+4. Đăng ký tài khoản hoặc đăng nhập.
+5. Kết nối MetaMask nếu cần ký xác thực ví.
+6. Vào **Upload & Protect** để đăng ký tác phẩm.
+7. Vào **Verify** để kiểm tra lại file bằng SHA-256 và pHash.
+
+Nếu chưa cấu hình RPC/contract, các chức năng local như mở giao diện, đăng nhập, upload và kiểm tra API vẫn có thể chạy; trạng thái ghi on-chain sẽ không hoàn tất cho tới khi blockchain được cấu hình đúng.
+
+## Tạo dữ liệu demo mẫu
+
+Sau khi backend container đang chạy, có thể tạo exhibition demo gồm 8 tác phẩm mẫu:
+
+```bash
+docker compose exec backend python scripts/seed_demo.py --reset-demo
+```
+
+Script tạo 3 ảnh mẫu và 5 written works mẫu. File upload và database chỉ nằm trong volume Docker local, không được commit vào Git. Tài khoản metadata mẫu dùng địa chỉ dạng `demo.*@mediaguard.local`; không dùng mật khẩu demo trên môi trường thật.
+
+Sau khi seed, refresh http://localhost:5173 để xem Gallery.
+
+## Cách chạy không dùng Docker
+
+### Backend
 
 ```bash
 cd backend
@@ -57,17 +149,9 @@ cp ../.env.example .env
 
 API docs: http://localhost:8000/docs
 
-Để tạo exhibition demo sạch và chuyên nghiệp gồm 8 tác phẩm mẫu, chạy từ thư mục `backend`:
+### Frontend
 
-```bash
-python scripts/seed_demo.py --reset-demo
-```
-
-Script tạo 3 ảnh mẫu và 5 written works mẫu, không commit file upload vào Git. Tài khoản demo dùng cho metadata là `demo.*@mediaguard.local`; không dùng mật khẩu demo trên môi trường thật.
-
-Luồng đăng ký: đăng nhập, gọi `POST /auth/wallet/nonce` bằng Bearer JWT, ký message trả về, gọi `POST /auth/wallet/verify`, sau đó upload vào `POST /artworks/register`. Backend stream giới hạn kích thước, validate ảnh thật, tính SHA-256/pHash và gọi `register` on-chain nếu Web3 được cấu hình. `POST /verify` đối chiếu local và chain.
-
-## Chạy frontend
+Mở Terminal thứ hai:
 
 ```bash
 cd frontend
@@ -75,13 +159,17 @@ npm install
 npm run dev
 ```
 
-Mở http://localhost:5173. Vite proxy `/api` tới `http://localhost:8000`; nếu backend chạy ở URL khác, tạo `frontend/.env.local` với `VITE_API_BASE=https://your-api.example.com`. Frontend có các route `/`, `/protect` và `/verify`, đăng nhập/đăng ký, kết nối MetaMask, ký nonce, upload bảo hộ, gallery và verify công khai.
+Mở http://localhost:5173. Vite proxy `/api` tới `http://localhost:8000`. Nếu backend ở URL khác, tạo `frontend/.env.local`:
 
-Gallery là public exhibition: chỉ hiển thị tác phẩm public ở trạng thái `protected` hoặc `approved_local`, kèm bằng chứng xác minh. Ngoài ảnh, form hỗ trợ **TXT, Markdown và PDF text**. Written work có bìa typography, loại tác phẩm, ngôn ngữ, số từ/trang, license và modal chi tiết. Tác giả có thể chọn preview 400 từ, cho phép tải file và tích checkbox **Hiển thị Gmail liên hệ trên exhibition**; tất cả đều mặc định tắt. Backend tự migrate các cột written work cho SQLite cũ.
+```dotenv
+VITE_API_BASE=https://your-api.example.com
+```
 
-Trạng thái artwork: `pending_chain`, `protected`, `approved_local`, `chain_failed`. Nếu request bị ngắt sau khi broadcast, gọi `POST /artworks/{id}/retry-chain`; backend sẽ verify SHA-256 trên chain trước khi quyết định gửi transaction mới.
+Các route chính của frontend là `/`, `/protect`, `/verify`, `/works/:id` và `/works/:id/certificate`.
 
 ## Smart contract
+
+Cài dependency ở thư mục gốc:
 
 ```bash
 npm install
@@ -94,9 +182,110 @@ Script deploy tạo `backend/app/contract_deployment.json`. Không commit `.env`
 
 ## Test
 
+Backend:
+
 ```bash
 pytest
+```
+
+Smart contract:
+
+```bash
 npm test
 ```
 
-Production bắt buộc đặt `JWT_SECRET` tối thiểu 32 ký tự. Backend có migration additive tự động cho ba cột wallet trên SQLite cũ, rate limit mặc định 30 lượt/phút/IP cho `/verify` (`VERIFY_RATE_LIMIT`) và 10 lượt/phút/IP cho auth (`AUTH_RATE_LIMIT`). RPC verify chạy ngoài event loop và dùng client cache. Lock theo file hash chống gửi duplicate trong cùng process, lock nonce chỉ giữ tới lúc broadcast. Khi phục hồi artwork đã tồn tại trên chain, backend tìm lại `tx_hash` từ event `ArtworkRegistered`; có thể giới hạn vùng quét bằng `CHAIN_START_BLOCK`. Test dùng SQLite tạm từ `backend/tests/conftest.py`. Khi chạy nhiều worker/instance, nên dùng PostgreSQL với cơ chế khóa phân tán hoặc queue giao dịch.
+Frontend:
+
+```bash
+cd frontend
+npm test
+npm run build
+```
+
+## Xử lý lỗi thường gặp
+
+### `docker compose` báo thiếu `.env`
+
+Đảm bảo đang đứng tại thư mục gốc repository và chạy lại:
+
+```bash
+test -f .env || cp .env.example .env; docker compose up --build
+```
+
+### Backend chưa healthy hoặc frontend chưa mở được
+
+Xem log riêng của backend:
+
+```bash
+docker compose logs -f backend
+```
+
+Kiểm tra:
+
+```bash
+curl http://localhost:8000/health
+```
+
+Backend có thể cần thêm thời gian ở lần build/khởi động đầu tiên. Compose đã cấu hình `depends_on` để frontend chờ healthcheck backend.
+
+### Port 5173 hoặc 8000 đã được sử dụng
+
+Tìm và dừng service đang dùng port, hoặc chỉnh port bên trái trong `docker-compose.yml`. Ví dụ:
+
+```yaml
+ports:
+  - "5174:5173"
+```
+
+Sau đó mở frontend tại http://localhost:5174 và cập nhật `CORS_ORIGINS` tương ứng nếu cần.
+
+### Thay đổi mã nguồn nhưng giao diện chưa cập nhật
+
+Build lại image:
+
+```bash
+docker compose up --build
+```
+
+Nếu vẫn còn cache cũ:
+
+```bash
+docker compose build --no-cache
+docker compose up
+```
+
+## Kiến trúc Docker
+
+`docker-compose.yml` khởi động hai service:
+
+- **backend:** FastAPI/Uvicorn trên port `8000`, dùng SQLite và upload directory trong volume `backend_data`.
+- **frontend:** React/Vite trên port `5173`, gọi backend local tại `http://localhost:8000`.
+
+Sơ đồ luồng local:
+
+```text
+Browser :5173  →  Frontend container :5173
+                     ↓
+                Backend container :8000
+                     ↓
+              SQLite + uploads volume
+```
+
+Docker local và hệ thống deploy Internet là hai môi trường độc lập:
+
+```text
+Local Docker:
+http://localhost:5173  →  http://localhost:8000
+
+Production:
+Vercel frontend        →  Render backend
+```
+
+## Một số giới hạn và lưu ý production
+
+- Production bắt buộc đặt `JWT_SECRET` tối thiểu 32 ký tự.
+- Backend có rate limit mặc định 30 lượt/phút/IP cho `/verify` và 10 lượt/phút/IP cho auth.
+- SQLite phù hợp cho local/demo. Khi chạy nhiều worker/instance, nên dùng PostgreSQL với cơ chế khóa phân tán hoặc queue giao dịch.
+- Trạng thái artwork gồm `pending_chain`, `protected`, `approved_local` và `chain_failed`.
+- Nếu request bị ngắt sau khi broadcast, có thể retry bằng `POST /artworks/{id}/retry-chain`.
+- Gallery public chỉ hiển thị tác phẩm public có proof hợp lệ.
