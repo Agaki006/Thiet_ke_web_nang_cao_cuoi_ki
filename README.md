@@ -13,6 +13,57 @@ Frontend production dùng Vercel rewrite `/api/*` tới backend Render. Render F
 
 > Các link trên Internet dùng cho demo/nộp bài. Docker Compose bên dưới chỉ chạy một bản **local độc lập** trên máy của bạn, không khởi động Vercel hoặc Render.
 
+## Quy trình chuẩn: đồng bộ GitHub về máy rồi chạy Docker
+
+Luôn cập nhật mã nguồn từ GitHub trước khi build Docker để image local sử dụng đúng phiên bản mới nhất.
+
+### Trường hợp chưa có project trên máy
+
+```bash
+git clone https://github.com/Luzji/Web_project.git
+cd Web_project
+git switch main
+git pull --ff-only origin main
+```
+
+### Trường hợp đã có thư mục project trên máy
+
+Mở Terminal tại thư mục project và kiểm tra thay đổi local trước:
+
+```bash
+git status
+```
+
+Nếu không có file đang sửa dở, đồng bộ branch `main`:
+
+```bash
+git switch main
+git fetch origin
+git pull --ff-only origin main
+```
+
+Nếu `git status` cho biết có thay đổi local, không nên dùng `git reset --hard` nếu chưa chắc chắn vì lệnh đó có thể xóa công việc chưa commit. Có thể cất tạm thay đổi rồi đồng bộ:
+
+```bash
+git stash push -u -m "save local work before Docker sync"
+git switch main
+git fetch origin
+git pull --ff-only origin main
+```
+
+Sau khi đồng bộ xong, kiểm tra commit hiện tại:
+
+```bash
+git log -1 --oneline --decorate
+git status --short --branch
+```
+
+Branch cần là `main`, working tree nên sạch và commit phải là commit mới nhất trên `origin/main`.
+
+> Nếu `git pull --ff-only` báo lỗi vì branch local đã có commit riêng, hãy dừng lại để xem lịch sử bằng `git log --oneline --graph --all`. Không tự ý force push hoặc reset khi chưa sao lưu thay đổi.
+
+Sau bước đồng bộ, chuyển sang phần [Chạy toàn bộ ứng dụng bằng Docker với một lệnh](#chạy-toàn-bộ-ứng-dụng-bằng-docker-với-một-lệnh).
+
 ## Chạy toàn bộ ứng dụng bằng Docker với một lệnh
 
 ### Yêu cầu
