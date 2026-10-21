@@ -2,6 +2,15 @@
 
 Đăng ký bản quyền ảnh số bằng SHA-256, pHash, xác thực ví MetaMask và chứng nhận on-chain trên Ethereum Sepolia.
 
+## Link deploy
+
+- Frontend: https://web-project-sigma-five.vercel.app
+- Backend API: https://web-project-q18h.onrender.com
+- API documentation: https://web-project-q18h.onrender.com/docs
+- Health check: https://web-project-q18h.onrender.com/health
+
+Frontend dùng Vercel rewrite `/api/*` tới backend Render. Khi backend Render ở trạng thái sleep, request đầu tiên có thể cần thêm thời gian để khởi động.
+
 ## Chạy backend
 
 ```bash
