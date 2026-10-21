@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AlertTriangle, ArrowUpRight, Clock3, FileCheck2, FileText, ImagePlus, Loader2, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { api, Artwork } from '../api'
 
@@ -62,18 +62,23 @@ function WrittenWorkCard({ artwork, ...actions }: CardProps) {
   </>
 }
 
-function Metric({ value, label, icon, tone = '' }: { value: string; label: string; icon: ReactNode; tone?: string }) {
-  return <div className={`metric-card ${tone}`}><div className="metric-copy"><span>{label}</span><strong>{value}</strong></div><div className="metric-icon">{icon}</div></div>
+type GalleryFilter = 'all' | 'images' | 'written' | 'on-chain'
+
+function Metric({ value, label, tone = '' }: { value: number; label: string; tone?: string }) {
+  return <div className={`metric-card ${tone}`}><div className="metric-copy"><span>{label}</span><strong>{value}</strong></div></div>
 }
 
 export default function Gallery({ artworks, loading, authenticated, onRefresh, onNavigate, onOpenWork, notify }: { artworks: Artwork[]; loading: boolean; authenticated: boolean; onRefresh: () => void; onNavigate: (view: View) => void; onOpenWork: (id: number) => void; notify: (toast: Toast) => void }) {
-  const exhibition = artworks.filter((artwork) => artwork.visibility === 'public' && ['protected', 'approved_local', 'pending_chain', 'chain_failed'].includes(artwork.status))
+  const [filter, setFilter] = useState<GalleryFilter>('all')
+  const exhibition = useMemo(() => artworks.filter((artwork) => artwork.visibility === 'public' && ['protected', 'approved_local', 'pending_chain', 'chain_failed'].includes(artwork.status)), [artworks])
+  const filtered = useMemo(() => exhibition.filter((artwork) => filter === 'all' || (filter === 'images' && artwork.media_type === 'image') || (filter === 'written' && artwork.media_type === 'written') || (filter === 'on-chain' && artwork.status === 'protected')), [exhibition, filter])
   const protectedCount = exhibition.filter((artwork) => artwork.status === 'protected').length
-  const awaitingCount = exhibition.filter((artwork) => !artwork.tx_hash && artwork.status !== 'protected').length
+  const awaitingCount = exhibition.filter((artwork) => artwork.status !== 'protected').length
+  const filters: Array<[GalleryFilter, string]> = [['all', 'All'], ['images', 'Images'], ['written', 'Written'], ['on-chain', 'On-chain']]
   return <section className="page-section">
-    <div className="page-heading"><div><div className="eyebrow"><Sparkles size={14} /> PUBLIC DIGITAL EXHIBITION</div><h1>Proof, not promises.</h1><p>Không gian trưng bày ảnh và tác phẩm viết đã xác minh, cùng bằng chứng và thông tin liên hệ tác giả.</p></div><button className="primary-button" onClick={() => onNavigate('protect')}><ImagePlus size={17} /> Protect a work</button></div>
-    <div className="metric-grid"><Metric value={String(exhibition.length).padStart(2, '0')} label="Verified works" icon={<FileCheck2 />} /><Metric value={String(protectedCount).padStart(2, '0')} label="On-chain protected" icon={<ShieldCheck />} tone="metric-accent" /><Metric value={String(awaitingCount).padStart(2, '0')} label="Awaiting transaction" icon={<Clock3 />} tone="metric-warning" /></div>
-    <div className="section-title-row"><div><h2>Verified exhibition</h2><p>Public registry · latest first · contact authors directly</p></div><button className="ghost-button" onClick={onRefresh}>Refresh <span>↻</span></button></div>
-    {loading ? <div className="empty-state"><Loader2 className="spin" size={24} /><p>Đang tải registry…</p></div> : exhibition.length === 0 ? <div className="empty-state empty-border"><div className="empty-icon"><ImagePlus size={24} /></div><h3>Chưa có tác phẩm nào</h3><p>Đăng ký tác phẩm đầu tiên để tạo dấu vân tay bản quyền.</p><button className="secondary-button" onClick={() => onNavigate('protect')}>Bắt đầu bảo hộ <ArrowUpRight size={16} /></button></div> : <div className="art-grid">{exhibition.map((artwork, index) => artwork.media_type === 'written' ? <WrittenWorkCard key={artwork.id} artwork={artwork} authenticated={authenticated} onRefresh={onRefresh} onOpenWork={onOpenWork} notify={notify} /> : <ArtworkCard key={artwork.id} artwork={artwork} index={index} authenticated={authenticated} onRefresh={onRefresh} onOpenWork={onOpenWork} notify={notify} />)}</div>}
+    <div className="page-heading"><div><div className="eyebrow"><Sparkles size={14} /> PUBLIC DIGITAL EXHIBITION</div><h1>Proof, not promises.</h1><p>Không gian trưng bày ảnh và tác phẩm viết đã xác minh, kèm bằng chứng SHA-256 và thông tin liên hệ tác giả.</p></div><button className="primary-button" onClick={() => onNavigate('protect')}><ImagePlus size={17} /> Protect a work</button></div>
+    <div className="metric-grid"><Metric value={exhibition.length} label="Verified works" /><Metric value={protectedCount} label="Confirmed on-chain" tone="metric-accent" /><Metric value={awaitingCount} label="Awaiting transaction" /></div>
+    <div className="section-title-row"><div><h2>Verified exhibition</h2><p>Mới nhất trước · liên hệ trực tiếp tác giả</p></div><div className="gallery-filters" role="group" aria-label="Lọc tác phẩm">{filters.map(([value, label]) => <button key={value} type="button" className={filter === value ? 'active' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>
+    {loading ? <div className="empty-state"><Loader2 className="spin" size={24} /><p>Đang tải registry…</p></div> : filtered.length === 0 ? <div className="empty-state empty-border"><div className="empty-icon"><ImagePlus size={24} /></div><h3>Chưa có tác phẩm nào trong mục này</h3><p>Thử chọn bộ lọc khác hoặc đăng ký tác phẩm đầu tiên.</p></div> : <div className="art-grid">{filtered.map((artwork, index) => artwork.media_type === 'written' ? <WrittenWorkCard key={artwork.id} artwork={artwork} authenticated={authenticated} onRefresh={onRefresh} onOpenWork={onOpenWork} notify={notify} /> : <ArtworkCard key={artwork.id} artwork={artwork} index={index} authenticated={authenticated} onRefresh={onRefresh} onOpenWork={onOpenWork} notify={notify} />)}</div>}
   </section>
 }

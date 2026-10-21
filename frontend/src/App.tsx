@@ -56,7 +56,7 @@ function App() {
     setLoadingGallery(true)
     try { setArtworks(await api.listArtworks()) } catch { notify({ type: 'error', message: 'Không tải được gallery. Kiểm tra FastAPI đang chạy.' }) } finally { setLoadingGallery(false) }
   }
-  useEffect(() => { void loadArtworks() }, [token])
+  useEffect(() => { if (view === 'gallery') void loadArtworks() }, [token, view])
   useEffect(() => {
     const onAuthExpired = (event: Event) => {
       const message = (event as CustomEvent<{ message?: string }>).detail?.message
