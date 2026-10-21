@@ -248,12 +248,12 @@ function WrittenWorkCard({ artwork, ...actions }: CardProps) {
             <button
               className="modal-close"
               onClick={() => setOpen(false)}
-              aria-label="Đóng tác phẩm"
+              aria-label={tr("Đóng tác phẩm")}
             >
               <X size={18} />
             </button>
             <div className="eyebrow">
-              <FileText size={14} /> WRITTEN WORK
+              <FileText size={14} /> {tr("WRITTEN WORK")}
             </div>
             <h2>{artwork.title}</h2>
             <p className="work-subtitle">

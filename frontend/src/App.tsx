@@ -299,7 +299,7 @@ function App() {
         <button
           className="mobile-scrim"
           onClick={() => setMobileOpen(false)}
-          aria-label="Đóng menu"
+          aria-label={tr("Đóng menu")}
         />
       )}
       <main className="main-area">
@@ -323,7 +323,7 @@ function App() {
               </b>
             </div>
             <div className="top-actions">
-              <div className="language-toggle" role="group" aria-label="Language">
+              <div className="language-toggle" role="group" aria-label={tr("Language", locale)}>
                 <button type="button" className={locale === "en" ? "active" : ""} aria-pressed={locale === "en"} onClick={() => changeLocale("en")}>EN</button>
                 <button type="button" className={locale === "vi" ? "active" : ""} aria-pressed={locale === "vi"} onClick={() => changeLocale("vi")}>VI</button>
               </div>
@@ -660,7 +660,7 @@ function Protect({
                 }
               >
                 {mediaType === "image" && previewUrl ? (
-                  <img src={previewUrl} alt="Ảnh xem trước" />
+                  <img src={previewUrl} alt={tr("Ảnh xem trước")} />
                 ) : (
                   <FileText size={34} />
                 )}
@@ -719,7 +719,7 @@ function Protect({
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Ví dụ: Moon over Da Nang"
+              placeholder={tr("Ví dụ: Moon over Da Nang")}
             />
           </label>
           <label>
@@ -727,7 +727,7 @@ function Protect({
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Mô tả ngắn về tác phẩm…"
+                placeholder={tr("Mô tả ngắn về tác phẩm…")}
               rows={4}
             />
           </label>
@@ -749,12 +749,12 @@ function Protect({
                     value={workType}
                     onChange={(event) => setWorkType(event.target.value)}
                   >
-                    <option value="essay">Essay</option>
-                    <option value="short-story">Short story</option>
-                    <option value="poem">Poem</option>
-                    <option value="article">Article</option>
-                    <option value="research">Research</option>
-                    <option value="lyrics">Lyrics</option>
+                  <option value="essay">{tr("Essay")}</option>
+                  <option value="short-story">{tr("Short story")}</option>
+                  <option value="poem">{tr("Poem")}</option>
+                  <option value="article">{tr("Article")}</option>
+                  <option value="research">{tr("Research")}</option>
+                  <option value="lyrics">{tr("Lyrics")}</option>
                   </select>
                 </label>
                 <label>
@@ -763,9 +763,9 @@ function Protect({
                     value={language}
                     onChange={(event) => setLanguage(event.target.value)}
                   >
-                    <option>Vietnamese</option>
-                    <option>English</option>
-                    <option>Other</option>
+                    <option value="Vietnamese">{tr("Vietnamese")}</option>
+                    <option value="English">{tr("English")}</option>
+                    <option value="Other">{tr("Other")}</option>
                   </select>
                 </label>
               </div>
@@ -776,10 +776,10 @@ function Protect({
                     value={license}
                     onChange={(event) => setLicense(event.target.value)}
                   >
-                    <option>All rights reserved</option>
-                    <option>CC BY 4.0</option>
-                    <option>CC BY-NC 4.0</option>
-                    <option>Personal use only</option>
+                    <option value="All rights reserved">{tr("All rights reserved")}</option>
+                    <option value="CC BY 4.0">CC BY 4.0</option>
+                    <option value="CC BY-NC 4.0">CC BY-NC 4.0</option>
+                    <option value="Personal use only">{tr("Personal use only")}</option>
                   </select>
                 </label>
                 <label>
@@ -964,7 +964,7 @@ function Verify({
             <>
               <div className="verify-file-thumb">
                 {verifyType === "image" && previewUrl ? (
-                  <img src={previewUrl} alt="Ảnh cần verify" />
+                  <img src={previewUrl} alt={tr("Ảnh cần verify")} />
                 ) : (
                   <FileText size={24} />
                 )}
@@ -1080,7 +1080,7 @@ function AuthModal({
     } catch (error) {
       notify({
         type: "error",
-        message: error instanceof Error ? error.message : "Không thể xác thực.",
+        message: error instanceof Error ? error.message : tr("Không thể xác thực."),
       });
     } finally {
       setBusy(false);
@@ -1101,13 +1101,13 @@ function AuthModal({
         <div className="eyebrow">MEDIA GUARDIAN ACCESS</div>
         <h2>
           {mode === "login"
-            ? "Welcome back."
-            : "Create your registry identity."}
+            ? tr("Welcome back.")
+            : tr("Create your registry identity.")}
         </h2>
         <p>
           {mode === "login"
-            ? "Đăng nhập để bảo hộ tác phẩm bằng ví của bạn."
-            : "Tạo tài khoản để bắt đầu xây dựng registry."}
+            ? tr("Đăng nhập để bảo hộ tác phẩm bằng ví của bạn.")
+            : tr("Tạo tài khoản để bắt đầu xây dựng registry.")}
         </p>
         <form onSubmit={submit}>
           <label>
@@ -1121,14 +1121,14 @@ function AuthModal({
             />
           </label>
           <label>
-            Password
+            {tr("Password")}
             <input
               type="password"
               required
               minLength={8}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Tối thiểu 8 ký tự"
+              placeholder={tr("Tối thiểu 8 ký tự")}
             />
           </label>
           <button className="primary-button full-button" disabled={busy}>
@@ -1136,11 +1136,11 @@ function AuthModal({
               <Loader2 className="spin" size={17} />
             ) : mode === "login" ? (
               <>
-                <LogIn size={17} /> Đăng nhập
+                <LogIn size={17} /> {tr("Log in")}
               </>
             ) : (
               <>
-                Tạo tài khoản <ArrowUpRight size={16} />
+                {tr("Tạo tài khoản")} <ArrowUpRight size={16} />
               </>
             )}
           </button>
@@ -1150,8 +1150,8 @@ function AuthModal({
           onClick={() => setMode(mode === "login" ? "register" : "login")}
         >
           {mode === "login"
-            ? "Chưa có tài khoản? Đăng ký"
-            : "Đã có tài khoản? Đăng nhập"}
+            ? tr("Chưa có tài khoản? Đăng ký")
+            : tr("Đã có tài khoản? Đăng nhập")}
         </button>
       </div>
     </div>
