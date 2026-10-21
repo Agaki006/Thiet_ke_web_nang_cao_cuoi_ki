@@ -1,4 +1,4 @@
-import json, logging, os, threading
+﻿import json, logging, os, threading
 from collections import defaultdict
 from pathlib import Path
 from web3 import Web3
@@ -45,7 +45,7 @@ def register_on_chain(file_hash: str, creator: str, originality: int, metadata_u
         # Global lock chỉ bao quanh đọc nonce + ký + broadcast.
         with _tx_lock:
             nonce = w3.eth.get_transaction_count(account.address, "pending")
-            tx = contract.functions.register(bytes.fromhex(file_hash), to_checksum_address(creator), originality, metadata_url).build_transaction({"from": account.address, "nonce": nonce, "chainId": w3.eth.chain_id, "gas": 350000, "maxFeePerGas": w3.to_wei("30", "gwei"), "maxPriorityFeePerGas": w3.to_wei("1", "gwei")})
+            tx = contract.functions.register(bytes.fromhex(file_hash), to_checksum_address(creator), originality, metadata_url).build_transaction({"from": account.address, "nonce": nonce, "chainId": w3.eth.chain_id, "gas": 1100000, "maxFeePerGas": w3.to_wei("30", "gwei"), "maxPriorityFeePerGas": w3.to_wei("1", "gwei")})
             signed = account.sign_transaction(tx)
             tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
@@ -93,3 +93,4 @@ def get_transaction_proof(tx_hash: str) -> dict[str, int | None] | None:
     block_number = int(receipt["blockNumber"])
     block = w3.eth.get_block(block_number)
     return {"block_number": block_number, "block_timestamp": int(block["timestamp"])}
+
