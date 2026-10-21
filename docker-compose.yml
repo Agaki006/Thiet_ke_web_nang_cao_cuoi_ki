@@ -8,7 +8,7 @@ services:
     environment:
       DATABASE_URL: sqlite:////data/mediaguard.db
       UPLOAD_DIR: /data/uploads
-      CORS_ORIGINS: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
       ENV: development
     ports:
       - "8000:8000"
