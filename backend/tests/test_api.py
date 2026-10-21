@@ -88,6 +88,23 @@ def test_list_artworks_marks_only_authenticated_owner():
     assert authenticated_by_id[other_id]["is_owner"] is False
 
 
+def test_work_detail_public_and_missing():
+    db = SessionLocal()
+    owner = User(email=f"detail-{uuid4().hex}@example.com", password_hash=hash_password("correct-horse-battery-staple"), wallet_address="0x0000000000000000000000000000000000000455")
+    db.add(owner); db.commit(); db.refresh(owner)
+    artwork = Artwork(owner_id=owner.id, file_path="/tmp/detail.png", sha256=uuid4().hex * 2, phash="b" * 16, title="Detail work", description="Detail description", tags='["design"]', originality=98, status="protected", tx_hash="0x" + "ab" * 32, media_type="image", visibility="public")
+    db.add(artwork); db.commit(); db.refresh(artwork); artwork_id = artwork.id; db.close()
+
+    response = client.get(f"/artworks/{artwork_id}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["id"] == artwork_id
+    assert body["kind"] == "image"
+    assert body["owner_address"].endswith("0455")
+    assert body["is_owner"] is False
+    assert client.get("/artworks/99999999").status_code == 404
+
+
 def test_verify_returns_public_suspected_image_metadata(monkeypatch):
     db = SessionLocal()
     owner = User(email=f"suspect-{uuid4().hex}@example.com", password_hash=hash_password("correct-horse-battery-staple"))

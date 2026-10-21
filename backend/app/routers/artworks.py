@@ -12,7 +12,7 @@ from starlette.concurrency import run_in_threadpool
 
 from ..db import get_db
 from ..models import Artwork, User
-from ..schemas import ArtworkOut, VerifyResult
+from ..schemas import ArtworkOut, VerifyResult, WorkDetailOut
 from ..services.auth_service import decode_token
 from ..services.blockchain_service import find_registration_tx, get_transaction_proof, register_on_chain, verify_on_chain
 from ..services.image_service import InvalidImageError, phash_file, sha256_file, similarity_percent, validate_image
@@ -135,6 +135,23 @@ def _safe_transaction_proof(tx_hash: str | None) -> dict[str, int | None] | None
 def list_artworks(viewer: User | None = Depends(optional_current_user), db: Session = Depends(get_db)):
     rows = db.scalars(select(Artwork).where(Artwork.visibility == "public").order_by(Artwork.created_at.desc())).all()
     return [parse_artwork(x, viewer=viewer) for x in rows]
+
+
+@router.get("/artworks/{artwork_id}", response_model=WorkDetailOut)
+def get_artwork_detail(artwork_id: int, viewer: User | None = Depends(optional_current_user), db: Session = Depends(get_db)):
+    row = db.get(Artwork, artwork_id)
+    if not row or (row.visibility != "public" and not (viewer and viewer.id == row.owner_id)):
+        raise HTTPException(404, "Không tìm thấy tác phẩm")
+    media_type = getattr(row, "media_type", "image") or "image"
+    return WorkDetailOut(
+        id=row.id, title=row.title, description=row.description or "", tags=json.loads(row.tags or "[]"),
+        kind=media_type, owner_address=row.owner.wallet_address, created_at=row.created_at, status=row.status,
+        sha256=row.sha256, phash=row.phash, tx_hash=row.tx_hash,
+        contract_address=os.getenv("CONTRACT_ADDRESS"),
+        image_url=f"/api/media/{Path(row.file_path).name}" if media_type == "image" and row.visibility == "public" else None,
+        work_type=getattr(row, "work_type", None), originality=row.originality,
+        is_owner=bool(viewer and viewer.id == row.owner_id),
+    )
 
 
 @router.get("/artworks/{artwork_id}/download")

@@ -52,6 +52,24 @@ class ArtworkOut(BaseModel):
     # Derived per request from the authenticated subject; never client-supplied.
     is_owner: bool = False
 
+class WorkDetailOut(BaseModel):
+    id: int
+    title: str
+    description: str
+    tags: list[str]
+    kind: str
+    owner_address: str | None
+    created_at: datetime
+    status: str
+    sha256: str
+    phash: str
+    tx_hash: str | None
+    contract_address: str | None
+    image_url: str | None
+    work_type: str | None = None
+    originality: int = 0
+    is_owner: bool = False
+
 class VerifyResult(BaseModel):
     sha256: str
     media_type: str = "image"

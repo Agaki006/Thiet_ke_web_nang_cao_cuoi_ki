@@ -27,6 +27,25 @@ export type Artwork = {
   is_owner?: boolean
 }
 
+export type WorkDetail = {
+  id: number
+  title: string
+  description: string
+  tags: string[]
+  kind: 'image' | 'written'
+  owner_address: string | null
+  created_at: string
+  status: string
+  sha256: string
+  phash: string
+  tx_hash: string | null
+  contract_address: string | null
+  image_url: string | null
+  work_type: string | null
+  originality: number
+  is_owner?: boolean
+}
+
 export type VerifyResult = {
   sha256: string
   registered: boolean
@@ -120,6 +139,7 @@ export const api = {
   register: (email: string, password: string) => request<{ access_token: string }>('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) }),
   login: (email: string, password: string) => request<{ access_token: string }>('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) }),
   listArtworks: () => request<Artwork[]>('/artworks').then((items) => items.map(resolveArtworkAssets)),
+  getArtwork: (id: number) => request<WorkDetail>(`/artworks/${id}`).then((work) => ({ ...work, image_url: resolveApiAsset(work.image_url) })),
   retryChain: (id: number) => request<Artwork>(`/artworks/${id}/retry-chain`, { method: 'POST' }).then(resolveArtworkAssets),
   walletNonce: () => request<{ nonce: string; message: string; expires_at: string }>('/auth/wallet/nonce', { method: 'POST' }),
   walletVerify: (wallet_address: string, signature: string, nonce: string) => request<{ access_token: string }>('/auth/wallet/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet_address, signature, nonce }) }),

@@ -4,8 +4,10 @@ import { api, Artwork, AUTH_TOKEN_KEY, WALLET_ADDRESS_KEY, VerifyResult } from '
 import { connectWallet, signWalletMessage } from './wallet'
 import Gallery from './components/Gallery'
 import VerifyResultCard from './components/VerifyResultCard'
+import WorkDetail from './components/WorkDetail'
+import Certificate from './components/Certificate'
 
-type View = 'gallery' | 'protect' | 'verify'
+type View = 'gallery' | 'protect' | 'verify' | 'work' | 'certificate'
 type Toast = { type: 'success' | 'error'; message: string } | null
 
 const navItems: { id: View; label: string; icon: typeof LayoutDashboard; note: string }[] = [
@@ -14,10 +16,12 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard; note: s
   { id: 'verify', label: 'Verify', icon: ScanLine, note: 'Kiểm tra tác phẩm' },
 ]
 
-function viewFromPath(pathname: string): View {
-  if (pathname === '/protect') return 'protect'
-  if (pathname === '/verify') return 'verify'
-  return 'gallery'
+function routeFromPath(pathname: string): { view: View; workId: number | null } {
+  const match = pathname.match(/^\/works\/(\d+)(\/certificate)?$/)
+  if (match) return { view: match[2] ? 'certificate' : 'work', workId: Number(match[1]) }
+  if (pathname === '/protect') return { view: 'protect', workId: null }
+  if (pathname === '/verify') return { view: 'verify', workId: null }
+  return { view: 'gallery', workId: null }
 }
 
 function shortHash(value: string | null | undefined) { return value ? `${value.slice(0, 8)}…${value.slice(-6)}` : 'Chưa ghi chain' }
@@ -36,7 +40,9 @@ function useObjectUrl(file: File | null) {
 }
 
 function App() {
-  const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname))
+  const initialRoute = routeFromPath(window.location.pathname)
+  const [view, setView] = useState<View>(initialRoute.view)
+  const [workId, setWorkId] = useState<number | null>(initialRoute.workId)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [artworks, setArtworks] = useState<Artwork[]>([])
   const [wallet, setWallet] = useState<string | null>(() => localStorage.getItem(WALLET_ADDRESS_KEY))
@@ -61,16 +67,16 @@ function App() {
     return () => window.removeEventListener('mediaguard:auth-expired', onAuthExpired)
   }, [])
   useEffect(() => {
-    const onPopState = () => setView(viewFromPath(window.location.pathname))
+    const onPopState = () => { const route = routeFromPath(window.location.pathname); setView(route.view); setWorkId(route.workId) }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
-  useEffect(() => { document.title = `${navItems.find((item) => item.id === view)?.label ?? 'MediaGuard'} · MediaGuard` }, [view])
+  useEffect(() => { document.title = `${view === 'work' || view === 'certificate' ? 'Work detail' : navItems.find((item) => item.id === view)?.label ?? 'MediaGuard'} · MediaGuard` }, [view])
   const navigate = (nextView: View) => {
     const path = nextView === 'gallery' ? '/' : `/${nextView}`
-    window.history.pushState({}, '', path)
-    setView(nextView)
+    window.history.pushState({}, '', path); setView(nextView); setWorkId(null)
   }
+  const navigatePath = (path: string) => { const route = routeFromPath(path); window.history.pushState({}, '', path); setView(route.view); setWorkId(route.workId) }
 
   const verifyConnectedWallet = async (connectedAddress: string) => {
     const nonce = await api.walletNonce()
@@ -112,9 +118,11 @@ function App() {
     </aside>
     {mobileOpen && <button className="mobile-scrim" onClick={() => setMobileOpen(false)} aria-label="Đóng menu" />}
     <main className="main-area">
-      <header className="topbar"><div className="topbar-inner content-container"><button className="icon-button menu-button" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><div className="breadcrumbs"><span>MediaGuard</span><ChevronRight size={14} /><b>{navItems.find((item) => item.id === view)?.label}</b></div><div className="top-actions"><button className={`wallet-chip ${wallet ? 'connected' : ''}`} onClick={onWallet}><Wallet size={16} /><span>{shortWallet(wallet)}</span></button>{token ? <><div className="user-avatar">MG</div><button className="logout-button" onClick={logout}>Đăng xuất</button></> : <button className="login-button" onClick={() => setAuthOpen(true)}><LogIn size={16} /> Đăng nhập</button>}</div></div></header>
+      <header className="topbar"><div className="topbar-inner content-container"><button className="icon-button menu-button" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><div className="breadcrumbs"><span>MediaGuard</span><ChevronRight size={14} /><b>{view === 'work' ? 'Work detail' : view === 'certificate' ? 'Certificate' : navItems.find((item) => item.id === view)?.label}</b></div><div className="top-actions"><button className={`wallet-chip ${wallet ? 'connected' : ''}`} onClick={onWallet}><Wallet size={16} /><span>{shortWallet(wallet)}</span></button>{token ? <><div className="user-avatar">MG</div><button className="logout-button" onClick={logout}>Đăng xuất</button></> : <button className="login-button" onClick={() => setAuthOpen(true)}><LogIn size={16} /> Đăng nhập</button>}</div></div></header>
       <div className="content-wrap content-container">
-        {view === 'gallery' && <Gallery artworks={artworks} loading={loadingGallery} authenticated={Boolean(token)} onRefresh={() => void loadArtworks()} onNavigate={navigate} notify={notify} />}
+        {view === 'gallery' && <Gallery artworks={artworks} loading={loadingGallery} authenticated={Boolean(token)} onRefresh={() => void loadArtworks()} onNavigate={navigate} onOpenWork={(id) => navigatePath(`/works/${id}`)} notify={notify} />}
+        {view === 'work' && workId !== null && <WorkDetail id={workId} authenticated={Boolean(token)} notify={notify} onNavigate={navigatePath} />}
+        {view === 'certificate' && workId !== null && <Certificate id={workId} onBack={() => navigatePath(`/works/${workId}`)} />}
         {view === 'protect' && <Protect authenticated={Boolean(token)} wallet={wallet} onDone={() => { void loadArtworks(); navigate('gallery') }} notify={notify} />}
         {view === 'verify' && <Verify notify={notify} onNavigate={navigate} />}
       </div>
