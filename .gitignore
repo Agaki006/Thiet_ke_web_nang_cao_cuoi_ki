@@ -19,3 +19,7 @@ __pycache__/
 # Runtime uploads when backend is started from repository root
 uploads/*
 !uploads/.gitkeep
+
+check-*.js
+update-env.js
+docker-build.log
