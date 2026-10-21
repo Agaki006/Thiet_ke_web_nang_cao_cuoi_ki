@@ -332,7 +332,7 @@ function App() {
                 onClick={onWallet}
               >
                 <Wallet size={16} />
-                <span>{shortWallet(wallet)}</span>
+                <span>{wallet ? shortWallet(wallet) : tr("Chưa kết nối", locale)}</span>
               </button>
               {token ? (
                 <>

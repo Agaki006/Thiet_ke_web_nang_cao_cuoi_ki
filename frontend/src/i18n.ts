@@ -232,10 +232,20 @@ const translations: Array<[string, string]> = [
   ["SIMILAR", "TƯƠNG ĐỒNG"],
 ];
 
-const englishToVietnamese = new Map(translations);
-const vietnameseToEnglish = new Map(
-  translations.map(([english, vietnamese]) => [vietnamese, english])
-);
+const vietnameseChars = /[ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữự]/;
+const englishToVietnamese = new Map<string, string>();
+const vietnameseToEnglish = new Map<string, string>();
+for (const [first, second] of translations) {
+  const firstIsVietnamese = vietnameseChars.test(first);
+  const secondIsVietnamese = vietnameseChars.test(second);
+  if (firstIsVietnamese && !secondIsVietnamese) {
+    vietnameseToEnglish.set(first, second);
+    englishToVietnamese.set(second, first);
+  } else {
+    englishToVietnamese.set(first, second);
+    vietnameseToEnglish.set(second, first);
+  }
+}
 
 export function getInitialLocale(): Locale {
   if (typeof window === "undefined") return "vi";
