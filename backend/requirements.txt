@@ -4,8 +4,10 @@ sqlalchemy
 psycopg2-binary
 pillow
 imagehash
-web3
-eth-account
+# Keep the modern binary-wheel line; leaving these unpinned lets pip backtrack
+# to legacy eth-account versions that require compiling pysha3 with gcc.
+web3==7.16.0
+eth-account==0.13.7
 python-dotenv
 python-multipart
 passlib[bcrypt]
