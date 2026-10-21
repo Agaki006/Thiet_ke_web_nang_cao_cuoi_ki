@@ -11,6 +11,25 @@
 
 Frontend dùng Vercel rewrite `/api/*` tới backend Render. Khi backend Render ở trạng thái sleep, request đầu tiên có thể cần thêm thời gian để khởi động.
 
+## Chạy local bằng Docker Compose
+
+Yêu cầu: Docker Desktop hoặc Docker Engine có Docker Compose.
+
+```bash
+cp .env.example .env
+# Chỉnh JWT_SECRET và các biến blockchain trong .env nếu cần
+docker compose up --build
+```
+
+Sau khi khởi động:
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- Swagger docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+
+Database SQLite và file upload được giữ trong Docker volume `backend_data`. Dừng stack bằng `Ctrl+C`; chạy nền bằng `docker compose up --build -d` và dừng bằng `docker compose down`.
+
 ## Chạy backend
 
 ```bash

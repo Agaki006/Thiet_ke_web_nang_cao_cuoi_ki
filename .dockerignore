@@ -1,0 +1,17 @@
+.git
+.github
+node_modules
+**/node_modules
+**/__pycache__
+**/*.py[cod]
+backend/venv
+backend/*.db
+backend/uploads
+uploads
+frontend/dist
+.env
+.env.*
+!.env.example
+artifacts
+cache
+typechain-types
