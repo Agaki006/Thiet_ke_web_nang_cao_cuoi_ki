@@ -86,3 +86,5 @@ watchfiles==1.3.0
 web3==8.0.0
 websockets==16.1.1
 yarl==1.25.1
+psycopg[binary]
+cloudinary
