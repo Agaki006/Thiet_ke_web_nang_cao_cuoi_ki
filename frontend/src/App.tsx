@@ -482,23 +482,23 @@ function Protect({
         type: "error",
         message:
           mediaType === "written"
-            ? "Tác phẩm viết cần là TXT, Markdown hoặc PDF."
-            : "Vui lòng chọn file ảnh PNG, JPEG hoặc WebP.",
+            ? tr("File cần là TXT, Markdown hoặc PDF.")
+            : tr("File cần là một ảnh hợp lệ."),
       });
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!file)
-      return notify({ type: "error", message: "Hãy chọn một ảnh trước." });
+      return notify({ type: "error", message: tr("Hãy chọn một ảnh trước.") });
     if (!authenticated)
       return notify({
         type: "error",
-        message: "Hãy đăng nhập trước khi bảo hộ tác phẩm.",
+        message: tr("Hãy đăng nhập trước khi bảo hộ tác phẩm."),
       });
     if (!wallet)
       return notify({
         type: "error",
-        message: "Hãy kết nối và ký xác thực MetaMask trước.",
+        message: tr("Hãy kết nối và ký xác thực MetaMask trước."),
       });
     setBusy(true);
     try {
@@ -526,8 +526,8 @@ function Protect({
         type: "success",
         message:
           artwork.status === "protected"
-            ? "Tác phẩm đã được ghi nhận on-chain."
-            : "Đã lưu kết quả quét local.",
+            ? tr("Tác phẩm đã được ghi nhận on-chain.")
+            : tr("Đã lưu kết quả quét local."),
       });
     } catch (error) {
       notify({
@@ -548,7 +548,7 @@ function Protect({
           <div className="success-orb">
             <Check size={32} />
           </div>
-          <div className="eyebrow">PROTECTION COMPLETE</div>
+          <div className="eyebrow">{tr("PROTECTION COMPLETE")}</div>
           <h1>{result.title}</h1>
           <p>
             Ảnh đã vượt qua lớp SHA-256 và pHash. Tác phẩm đang ở trạng thái{" "}
@@ -560,12 +560,12 @@ function Protect({
               <b>{result.sha256}</b>
             </div>
             <div>
-              <span>Originality score</span>
+                <span>{tr("Originality score")}</span>
               <b>{result.originality.toFixed(1)}%</b>
             </div>
             {result.tx_hash && (
               <div>
-                <span>Transaction</span>
+                <span>{tr("Transaction")}</span>
                 <a
                   href={`https://sepolia.etherscan.io/tx/${result.tx_hash}`}
                   target="_blank"
@@ -578,10 +578,10 @@ function Protect({
           </div>
           <div className="button-row">
             <button className="primary-button" onClick={onDone}>
-              Go to gallery <ArrowUpRight size={16} />
+              {tr("Go to gallery")} <ArrowUpRight size={16} />
             </button>
             <button className="ghost-button" onClick={() => setResult(null)}>
-              Protect another
+              {tr("Protect another")}
             </button>
           </div>
         </div>
@@ -592,26 +592,26 @@ function Protect({
       <div className="page-heading compact">
         <div>
           <div className="eyebrow">
-            <UploadCloud size={14} /> PROTECT YOUR WORK
+            <UploadCloud size={14} /> {tr("PROTECT YOUR WORK")}
           </div>
-          <h1>Make it yours.</h1>
+          <h1>{tr("Make it yours.")}</h1>
           <p>
-            Upload ảnh gốc, ký bằng ví của bạn và tạo chứng nhận không thể sửa.
+            {tr("Upload ảnh gốc, ký bằng ví của bạn và tạo chứng nhận không thể sửa.")}
           </p>
         </div>
       </div>
       <div className="protect-stepper">
         <div className="step-active">
           <b>01</b>
-          <span>Details</span>
+          <span>{tr("Details")}</span>
         </div>
         <div>
           <b>02</b>
-          <span>Wallet signature</span>
+          <span>{tr("Wallet signature")}</span>
         </div>
         <div>
           <b>03</b>
-          <span>On-chain proof</span>
+          <span>{tr("On-chain proof")}</span>
         </div>
       </div>
       <form className="protect-layout" onSubmit={submit}>
@@ -624,7 +624,7 @@ function Protect({
               setFile(null);
             }}
           >
-            <ImagePlus size={15} /> Image
+            <ImagePlus size={15} /> {tr("Image")}
           </button>
           <button
             type="button"
@@ -667,14 +667,14 @@ function Protect({
               </div>
               <div className="file-name">{file.name}</div>
               <span className="file-size">
-                {(file.size / 1024 / 1024).toFixed(2)} MB · ready to scan
+                {(file.size / 1024 / 1024).toFixed(2)} MB · {tr("ready to scan")}
               </span>
               <button
                 type="button"
                 className="remove-file"
                 onClick={() => setFile(null)}
               >
-                <X size={14} /> Remove
+                <X size={14} /> {tr("Remove")}
               </button>
             </>
           ) : (
@@ -683,13 +683,10 @@ function Protect({
                 <UploadCloud size={25} />
               </div>
               <h3>
-                Drop{" "}
-                {mediaType === "image"
-                  ? "your image here"
-                  : "your written work here"}
+                {mediaType === "image" ? tr("Drop your image here") : tr("Drop your written work here")}
               </h3>
               <p>
-                or click to browse ·{" "}
+                {tr("hoặc nhấn để chọn tệp")} ·{" "}
                 {mediaType === "image"
                   ? "PNG, JPG, WebP"
                   : "TXT, Markdown, PDF"}{" "}
@@ -713,12 +710,12 @@ function Protect({
           <div className="form-head">
             <span className="step-number">01</span>
             <div>
-              <b>Work details</b>
-              <small>Metadata sẽ được ghi cùng proof</small>
+                  <b>{tr("Work details")}</b>
+                  <small>{tr("Metadata sẽ được ghi cùng proof")}</small>
             </div>
           </div>
           <label>
-            Title
+            {tr("Title")}
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -726,7 +723,7 @@ function Protect({
             />
           </label>
           <label>
-            Description
+            {tr("Description")}
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
@@ -735,19 +732,19 @@ function Protect({
             />
           </label>
           <label>
-            Tags
+            {tr("Tags")}
             <input
               value={tags}
               onChange={(event) => setTags(event.target.value)}
               placeholder="photography, night, vietnam"
             />
-            <span className="label-hint">Phân tách tag bằng dấu phẩy</span>
+            <span className="label-hint">{tr("Phân tách tag bằng dấu phẩy")}</span>
           </label>
           {mediaType === "written" && (
             <>
               <div className="inline-fields">
                 <label>
-                  Work type
+                  {tr("Work type")}
                   <select
                     value={workType}
                     onChange={(event) => setWorkType(event.target.value)}
@@ -761,7 +758,7 @@ function Protect({
                   </select>
                 </label>
                 <label>
-                  Language
+                  {tr("Language")}
                   <select
                     value={language}
                     onChange={(event) => setLanguage(event.target.value)}
@@ -774,7 +771,7 @@ function Protect({
               </div>
               <div className="inline-fields">
                 <label>
-                  License
+                  {tr("License")}
                   <select
                     value={license}
                     onChange={(event) => setLicense(event.target.value)}
@@ -786,7 +783,7 @@ function Protect({
                   </select>
                 </label>
                 <label>
-                  Visibility
+                  {tr("Visibility")}
                   <select
                     value={visibility}
                     onChange={(event) => {
@@ -797,8 +794,8 @@ function Protect({
                       }
                     }}
                   >
-                    <option value="public">Public exhibition</option>
-                    <option value="private">Private registry</option>
+                    <option value="public">{tr("Public exhibition")}</option>
+                    <option value="private">{tr("Private registry")}</option>
                   </select>
                 </label>
               </div>
@@ -812,9 +809,9 @@ function Protect({
                   }
                 />
                 <span>
-                  <b>Cho phép đọc preview công khai</b>
+                  <b>{tr("Cho phép đọc preview công khai")}</b>
                   <small>
-                    Chỉ hiển thị 400 từ đầu, không công khai file gốc.
+                    {tr("Chỉ hiển thị 400 từ đầu, không công khai file gốc.")}
                   </small>
                 </span>
               </label>
@@ -826,8 +823,8 @@ function Protect({
                   onChange={(event) => setAllowDownload(event.target.checked)}
                 />
                 <span>
-                  <b>Cho phép tải file</b>
-                  <small>Chỉ bật nếu bạn muốn người xem tải bản gốc.</small>
+                  <b>{tr("Cho phép tải file")}</b>
+                  <small>{tr("Chỉ bật nếu bạn muốn người xem tải bản gốc.")}</small>
                 </span>
               </label>
             </>
@@ -839,27 +836,27 @@ function Protect({
               onChange={(event) => setShowContactEmail(event.target.checked)}
             />
             <span>
-              <b>Hiển thị Gmail liên hệ trên exhibition</b>
+              <b>{tr("Hiển thị Gmail liên hệ trên exhibition")}</b>
               <small>
-                Mặc định tắt. Chỉ bật nếu bạn muốn người xem liên hệ trực tiếp.
+                {tr("Mặc định tắt. Chỉ bật nếu bạn muốn người xem liên hệ trực tiếp.")}
               </small>
             </span>
           </label>
           <div className="scan-note">
             <ShieldCheck size={16} />
             <span>
-              <b>AI pre-check enabled</b>
-              <small>SHA-256 exact match · pHash similarity scan</small>
+              <b>{tr("AI pre-check enabled")}</b>
+              <small>{tr("SHA-256 exact match · pHash similarity scan")}</small>
             </span>
           </div>
           <button className="primary-button full-button" disabled={busy}>
             {busy ? (
               <>
-                <Loader2 className="spin" size={17} /> Scanning & protecting…
+                <Loader2 className="spin" size={17} /> {tr("Scanning & protecting…")}
               </>
             ) : (
               <>
-                <ShieldCheck size={17} /> Scan & protect{" "}
+                <ShieldCheck size={17} /> {tr("Scan & protect")}{" "}
                 <ArrowUpRight size={16} />
               </>
             )}
@@ -896,8 +893,8 @@ function Verify({
         type: "error",
         message:
           verifyType === "written"
-            ? "File cần là TXT, Markdown hoặc PDF."
-            : "File cần là một ảnh hợp lệ.",
+            ? tr("File cần là TXT, Markdown hoặc PDF.")
+            : tr("File cần là một ảnh hợp lệ."),
       });
   };
   const submit = async () => {
@@ -908,7 +905,7 @@ function Verify({
     } catch (error) {
       notify({
         type: "error",
-        message: error instanceof Error ? error.message : "Verify thất bại.",
+        message: error instanceof Error ? error.message : tr("Verify thất bại."),
       });
     } finally {
       setBusy(false);
@@ -919,12 +916,11 @@ function Verify({
       <div className="page-heading compact verify-heading">
         <div>
           <div className="eyebrow">
-            <ScanLine size={14} /> PUBLIC VERIFICATION
+            <ScanLine size={14} /> {tr("PUBLIC VERIFICATION")}
           </div>
-          <h1>Does it belong?</h1>
+          <h1>{tr("Does it belong?")}</h1>
           <p>
-            Kiểm tra dấu vân tay ảnh mà không cần đăng nhập. So khớp SHA-256 và
-            pHash với registry công khai.
+            {tr("Kiểm tra dấu vân tay ảnh mà không cần đăng nhập. So khớp SHA-256 và pHash với registry công khai.")}
           </p>
         </div>
         <div className="verify-key">
@@ -942,7 +938,7 @@ function Verify({
               setResult(null);
             }}
           >
-            <ImagePlus size={15} /> Image
+            <ImagePlus size={15} /> {tr("Image")}
           </button>
           <button
             type="button"
@@ -953,7 +949,7 @@ function Verify({
               setResult(null);
             }}
           >
-            <FileText size={15} /> Written work
+            <FileText size={15} /> {tr("Written work")}
           </button>
         </div>
         <div
@@ -976,7 +972,7 @@ function Verify({
               <div className="verify-file-copy">
                 <b>{file.name}</b>
                 <span>
-                  {(file.size / 1024 / 1024).toFixed(1)} MB · sẵn sàng kiểm tra
+                  {(file.size / 1024 / 1024).toFixed(1)} MB · {tr("sẵn sàng kiểm tra")}
                 </span>
               </div>
               <button
@@ -987,7 +983,7 @@ function Verify({
                   setResult(null);
                 }}
               >
-                Change file
+                {tr("Change file")}
               </button>
             </>
           ) : (
@@ -996,10 +992,9 @@ function Verify({
                 <ScanLine size={26} />
               </div>
               <h3>
-                Drop {verifyType === "image" ? "an image" : "a written work"} to
-                verify
+                {verifyType === "image" ? tr("Drop an image to verify") : tr("Drop a written work to verify")}
               </h3>
-              <p>We compare it against the public registry.</p>
+              <p>{tr("We compare it against the public registry.")}</p>
               <input
                 type="file"
                 accept={
@@ -1019,11 +1014,11 @@ function Verify({
         >
           {busy ? (
             <>
-              <Loader2 className="spin" size={17} /> Comparing…
+              <Loader2 className="spin" size={17} /> {tr("Comparing…")}
             </>
           ) : (
             <>
-              <ScanLine size={17} /> Run verification
+              <ScanLine size={17} /> {tr("Run verification")}
             </>
           )}
         </button>
@@ -1036,22 +1031,22 @@ function Verify({
         )}
         {!result && (
           <div className="how-it-works">
-            <h3>How it works</h3>
+            <h3>{tr("How it works")}</h3>
             <div className="how-steps">
               <div>
                 <b>01</b>
-                <strong>Hash</strong>
-                <span>Exact file fingerprint</span>
+                    <strong>{tr("Hash")}</strong>
+                    <span>{tr("Exact file fingerprint")}</span>
               </div>
               <div>
                 <b>02</b>
                 <strong>pHash / text</strong>
-                <span>Similarity scan</span>
+                    <span>{tr("Similarity scan")}</span>
               </div>
               <div>
                 <b>03</b>
-                <strong>On-chain lookup</strong>
-                <span>Immutable proof check</span>
+                    <strong>{tr("On-chain lookup")}</strong>
+                    <span>{tr("Immutable proof check")}</span>
               </div>
             </div>
           </div>
