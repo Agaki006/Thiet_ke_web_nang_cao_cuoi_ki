@@ -145,6 +145,10 @@ svg { flex: 0 0 auto; }
 .breadcrumbs { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
 .breadcrumbs b { color: #D7E5EF; font-weight: 700; }
 .top-actions { display: flex; align-items: center; gap: 9px; margin-left: auto; }
+.language-toggle { display: inline-flex; align-items: center; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: rgba(16, 34, 57, .64); }
+.language-toggle button { min-width: 28px; padding: 5px 6px; color: var(--muted); border-radius: 6px; background: transparent; font: 11px 'DM Mono', monospace; }
+.language-toggle button.active { color: #07111F; background: var(--cyan); font-weight: 700; }
+.server-wake-note { display: block; max-width: 420px; margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .wallet-chip, .login-button {
   display: flex;
   align-items: center;
