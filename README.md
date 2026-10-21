@@ -21,6 +21,14 @@ cp .env.example .env
 docker compose up --build
 ```
 
+Để chuẩn bị file môi trường và khởi động toàn bộ hệ thống bằng một dòng lệnh:
+
+```bash
+cp .env.example .env && docker compose up --build
+```
+
+Docker Compose chỉ phục vụ chạy **local** trên máy đang thực thi lệnh; không chạy Vercel hay Render. Sau khi khởi động, mở frontend local tại `http://localhost:5173`. Frontend local gọi backend local tại `http://localhost:8000`.
+
 Sau khi khởi động:
 
 - Frontend: http://localhost:5173
@@ -29,6 +37,13 @@ Sau khi khởi động:
 - Health check: http://localhost:8000/health
 
 Database SQLite và file upload được giữ trong Docker volume `backend_data`. Dừng stack bằng `Ctrl+C`; chạy nền bằng `docker compose up --build -d` và dừng bằng `docker compose down`.
+
+Các link deploy trên Internet dùng cho demo và nộp bài, độc lập với Docker Compose local:
+
+- Frontend Vercel: https://web-project-sigma-five.vercel.app
+- Backend Render: https://web-project-q18h.onrender.com
+- API docs production: https://web-project-q18h.onrender.com/docs
+- Health check production: https://web-project-q18h.onrender.com/health
 
 ## Chạy backend
 
