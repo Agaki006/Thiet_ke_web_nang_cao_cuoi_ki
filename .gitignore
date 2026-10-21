@@ -23,3 +23,7 @@ uploads/*
 check-*.js
 update-env.js
 docker-build.log
+
+check-*.js
+update-env.js
+docker-build.log
