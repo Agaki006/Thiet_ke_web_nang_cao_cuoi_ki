@@ -20,6 +20,7 @@ from ..services.rate_limit import VERIFY_LIMITER
 from ..services.text_service import InvalidWrittenWorkError, extract_written_content, text_similarity
 
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token")
+optional_oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["artworks"])
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "./uploads")); UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -39,6 +40,20 @@ def current_user(token: str = Depends(oauth2), db: Session = Depends(get_db)) ->
     return user
 
 
+def optional_current_user(token: str | None = Depends(optional_oauth2), db: Session = Depends(get_db)) -> User | None:
+    """Resolve a bearer token for public endpoints without requiring one."""
+    if token is None:
+        return None
+    try:
+        user_id = int(decode_token(token))
+    except (JWTError, ValueError, KeyError):
+        raise HTTPException(401, "Token không hợp lệ")
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(401, "Không tìm thấy người dùng")
+    return user
+
+
 def detect_media_type(file: UploadFile, requested: str) -> str:
     if requested in {"image", "written"}:
         return requested
@@ -46,7 +61,7 @@ def detect_media_type(file: UploadFile, requested: str) -> str:
     return "written" if suffix in {".txt", ".md", ".markdown", ".pdf"} else "image"
 
 
-def parse_artwork(row: Artwork) -> ArtworkOut:
+def parse_artwork(row: Artwork, *, viewer: User | None = None) -> ArtworkOut:
     media_type = getattr(row, "media_type", "image") or "image"
     visibility = getattr(row, "visibility", None) or "public"
     license_name = getattr(row, "license", None) or "All rights reserved"
@@ -63,7 +78,7 @@ def parse_artwork(row: Artwork) -> ArtworkOut:
         preview_text=row.preview_text if show_preview else None, license=license_name,
         visibility=visibility, show_public_preview=show_preview,
         allow_download=bool(getattr(row, "allow_download", False)) and visibility == "public",
-        created_at=row.created_at,
+        created_at=row.created_at, is_owner=bool(viewer and row.owner_id == viewer.id),
     )
 
 
@@ -117,9 +132,9 @@ def _safe_transaction_proof(tx_hash: str | None) -> dict[str, int | None] | None
 
 
 @router.get("/artworks", response_model=list[ArtworkOut])
-def list_artworks(db: Session = Depends(get_db)):
+def list_artworks(viewer: User | None = Depends(optional_current_user), db: Session = Depends(get_db)):
     rows = db.scalars(select(Artwork).where(Artwork.visibility == "public").order_by(Artwork.created_at.desc())).all()
-    return [parse_artwork(x) for x in rows]
+    return [parse_artwork(x, viewer=viewer) for x in rows]
 
 
 @router.get("/artworks/{artwork_id}/download")
@@ -221,7 +236,7 @@ async def verify_artwork(request: Request, file: UploadFile = File(...), db: Ses
                 on_chain_registered=on_chain, message="Mã SHA-256 của file khớp hoàn toàn với tác phẩm đã đăng ký. File này giống hệt bản gốc.", media_type=media_type,
                 matched_title=exact.title, matched_wallet=exact.owner.wallet_address, matched_created_at=exact.created_at,
                 matched_status=exact.status, matched_tx_hash=exact.tx_hash,
-                matched_image_url=f"/api/media/{Path(exact.file_path).name}" if exact.media_type == "image" else None,
+                matched_image_url=f"/api/media/{Path(exact.file_path).name}" if exact.media_type == "image" and exact.visibility == "public" else None,
                 matched_block_number=proof.get("block_number") if proof else None,
                 matched_block_timestamp=(datetime.fromtimestamp(proof["block_timestamp"], timezone.utc) if proof and proof.get("block_timestamp") else None),
             )
@@ -240,7 +255,14 @@ async def verify_artwork(request: Request, file: UploadFile = File(...), db: Ses
             for row in db.scalars(select(Artwork).where(Artwork.media_type == "written")).all():
                 score = text_similarity(content_text, row.content_text)
                 if score > best: best, nearest = score, row
-        return VerifyResult(sha256=sha, registered=False, suspected_artwork_id=nearest.id if nearest else None, suspected_artwork_title=nearest.title if nearest else None, similarity_percent=best, message=f"Không trùng tuyệt đối; giống gần nhất {best}%" if nearest else "Chưa có dữ liệu đối chiếu", media_type=media_type)
+        return VerifyResult(
+            sha256=sha, registered=False, suspected_artwork_id=nearest.id if nearest else None,
+            suspected_artwork_title=nearest.title if nearest else None,
+            # Do not reveal a private work's direct media path through a public verification.
+            suspected_artwork_image_url=(f"/api/media/{Path(nearest.file_path).name}" if nearest and nearest.media_type == "image" and nearest.visibility == "public" else None),
+            suspected_artwork_media_type=nearest.media_type if nearest else None,
+            similarity_percent=best, message=f"Không trùng tuyệt đối; giống gần nhất {best:.1f}%" if nearest else "Chưa có dữ liệu đối chiếu", media_type=media_type,
+        )
     finally:
         target.unlink(missing_ok=True)
 

@@ -23,6 +23,8 @@ export type Artwork = {
   show_public_preview: boolean
   allow_download: boolean
   created_at: string
+  /** Server-computed against the bearer token sent with listArtworks. */
+  is_owner?: boolean
 }
 
 export type VerifyResult = {
@@ -32,6 +34,8 @@ export type VerifyResult = {
   similarity_percent: number
   suspected_artwork_id?: number | null
   suspected_artwork_title?: string | null
+  suspected_artwork_image_url?: string | null
+  suspected_artwork_media_type?: 'image' | 'written' | null
   matched_title?: string | null
   matched_wallet?: string | null
   matched_created_at?: string | null
@@ -48,6 +52,16 @@ export type VerifyResult = {
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 export const AUTH_TOKEN_KEY = 'mediaguard_token'
 export const WALLET_ADDRESS_KEY = 'mediaguard_wallet'
+
+export function resolveApiAsset(value: string | null | undefined): string | null {
+  if (!value) return null
+  // FastAPI uses /api paths for the default proxy; preserve custom API origins.
+  return value.startsWith('/api/') ? `${API_BASE.replace(/\/$/, '')}${value.slice(4)}` : value
+}
+
+function resolveArtworkAssets(artwork: Artwork): Artwork {
+  return { ...artwork, image_url: resolveApiAsset(artwork.image_url), download_url: resolveApiAsset(artwork.download_url) }
+}
 
 export class AuthExpiredError extends Error {
   constructor(message = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.') {
@@ -69,7 +83,7 @@ function detailToMessage(detail: unknown): string | null {
   if (detail && typeof detail === 'object') {
     const record = detail as Record<string, unknown>
     const message = typeof record.message === 'string' ? record.message : typeof record.msg === 'string' ? record.msg : null
-    const similarity = typeof record.similarity_percent === 'number' ? `Độ tương đồng: ${Math.round(record.similarity_percent)}%.` : null
+    const similarity = typeof record.similarity_percent === 'number' ? `Độ tương đồng: ${record.similarity_percent.toFixed(1)}%.` : null
     if (message || similarity) return [message, similarity].filter(Boolean).join(' ')
     try { return JSON.stringify(detail) } catch { return null }
   }
@@ -105,16 +119,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   register: (email: string, password: string) => request<{ access_token: string }>('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) }),
   login: (email: string, password: string) => request<{ access_token: string }>('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) }),
-  listArtworks: () => request<Artwork[]>('/artworks'),
+  listArtworks: () => request<Artwork[]>('/artworks').then((items) => items.map(resolveArtworkAssets)),
+  retryChain: (id: number) => request<Artwork>(`/artworks/${id}/retry-chain`, { method: 'POST' }).then(resolveArtworkAssets),
   walletNonce: () => request<{ nonce: string; message: string; expires_at: string }>('/auth/wallet/nonce', { method: 'POST' }),
   walletVerify: (wallet_address: string, signature: string, nonce: string) => request<{ access_token: string }>('/auth/wallet/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet_address, signature, nonce }) }),
   registerArtwork: (file: File, title: string, description: string, tags: string[], showContactEmail: boolean, options: { mediaType: string; workType: string; language: string; license: string; visibility: string; showPublicPreview: boolean; allowDownload: boolean }) => {
     const form = new FormData()
     form.append('file', file); form.append('title', title); form.append('description', description); form.append('tags', JSON.stringify(tags)); form.append('show_contact_email', String(showContactEmail)); form.append('media_type', options.mediaType); form.append('work_type', options.workType); form.append('language', options.language); form.append('license', options.license); form.append('visibility', options.visibility); form.append('show_public_preview', String(options.showPublicPreview)); form.append('allow_download', String(options.allowDownload))
-    return request<Artwork>('/artworks/register', { method: 'POST', body: form })
+    return request<Artwork>('/artworks/register', { method: 'POST', body: form }).then(resolveArtworkAssets)
   },
   verify: (file: File) => {
     const form = new FormData(); form.append('file', file)
-    return request<VerifyResult>('/verify', { method: 'POST', body: form })
+    return request<VerifyResult>('/verify', { method: 'POST', body: form }).then((result) => ({ ...result, matched_image_url: resolveApiAsset(result.matched_image_url), suspected_artwork_image_url: resolveApiAsset(result.suspected_artwork_image_url) }))
   },
 }

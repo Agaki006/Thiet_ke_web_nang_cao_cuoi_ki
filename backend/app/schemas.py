@@ -49,6 +49,8 @@ class ArtworkOut(BaseModel):
     show_public_preview: bool
     allow_download: bool
     created_at: datetime
+    # Derived per request from the authenticated subject; never client-supplied.
+    is_owner: bool = False
 
 class VerifyResult(BaseModel):
     sha256: str
@@ -58,6 +60,8 @@ class VerifyResult(BaseModel):
     similarity_percent: float = 0
     suspected_artwork_id: int | None = None
     suspected_artwork_title: str | None = None
+    suspected_artwork_image_url: str | None = None
+    suspected_artwork_media_type: str | None = None
     matched_title: str | None = None
     matched_wallet: str | None = None
     matched_created_at: datetime | None = None

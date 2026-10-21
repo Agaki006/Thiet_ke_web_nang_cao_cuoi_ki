@@ -59,6 +59,76 @@ def test_retry_chain_updates_existing_artwork(monkeypatch):
     assert response.json()["status"] == "protected"
 
 
+def test_list_artworks_marks_only_authenticated_owner():
+    db = SessionLocal()
+    password = "correct-horse-battery-staple"
+    owner = User(email=f"owner-{uuid4().hex}@example.com", password_hash=hash_password(password))
+    other = User(email=f"other-{uuid4().hex}@example.com", password_hash=hash_password(password))
+    db.add_all([owner, other]); db.commit(); db.refresh(owner); db.refresh(other)
+    owned = Artwork(owner_id=owner.id, file_path="/tmp/owned.png", sha256=uuid4().hex * 2, phash="0" * 16, title="Owned", originality=100, status="chain_failed", visibility="public")
+    not_owned = Artwork(owner_id=other.id, file_path="/tmp/other.png", sha256=uuid4().hex * 2, phash="1" * 16, title="Other", originality=100, status="pending_chain", visibility="public")
+    private = Artwork(owner_id=owner.id, file_path="/tmp/private.png", sha256=uuid4().hex * 2, phash="2" * 16, title="Private", originality=100, status="chain_failed", visibility="private")
+    db.add_all([owned, not_owned, private]); db.commit(); db.refresh(owned); db.refresh(not_owned); db.refresh(private)
+    owned_id, other_id, private_id, owner_email = owned.id, not_owned.id, private.id, owner.email
+    db.close()
+
+    anonymous = client.get("/artworks")
+    assert anonymous.status_code == 200, anonymous.text
+    anonymous_by_id = {item["id"]: item for item in anonymous.json()}
+    assert anonymous_by_id[owned_id]["status"] == "chain_failed"
+    assert anonymous_by_id[other_id]["status"] == "pending_chain"
+    assert anonymous_by_id[owned_id]["is_owner"] is False
+    assert private_id not in anonymous_by_id
+
+    token = client.post("/auth/login", json={"email": owner_email, "password": password}).json()["access_token"]
+    authenticated = client.get("/artworks", headers={"Authorization": f"Bearer {token}"})
+    assert authenticated.status_code == 200, authenticated.text
+    authenticated_by_id = {item["id"]: item for item in authenticated.json()}
+    assert authenticated_by_id[owned_id]["is_owner"] is True
+    assert authenticated_by_id[other_id]["is_owner"] is False
+
+
+def test_verify_returns_public_suspected_image_metadata(monkeypatch):
+    db = SessionLocal()
+    owner = User(email=f"suspect-{uuid4().hex}@example.com", password_hash=hash_password("correct-horse-battery-staple"))
+    db.add(owner); db.commit(); db.refresh(owner)
+    artwork = Artwork(
+        owner_id=owner.id, file_path="/tmp/closest.png", sha256=uuid4().hex * 2,
+        phash="a" * 16, title="Closest public image", originality=100, status="approved_local", media_type="image", visibility="public",
+    )
+    db.add(artwork); db.commit(); db.refresh(artwork)
+    artwork_id = artwork.id
+    db.close()
+
+    monkeypatch.setattr(artwork_router, "phash_file", lambda _path: "a" * 16)
+    response = client.post("/verify", files={"file": ("candidate.png", png_bytes("blue"), "image/png")})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["registered"] is False
+    assert body["suspected_artwork_id"] == artwork_id
+    assert body["suspected_artwork_title"] == "Closest public image"
+    assert body["suspected_artwork_image_url"] == "/api/media/closest.png"
+    assert body["suspected_artwork_media_type"] == "image"
+    assert body["message"].endswith("100.0%")
+
+
+def test_verify_exact_private_image_has_no_public_thumbnail(monkeypatch):
+    from hashlib import sha256
+
+    data = png_bytes("purple")
+    db = SessionLocal()
+    owner = User(email=f"private-{uuid4().hex}@example.com", password_hash=hash_password("correct-horse-battery-staple"))
+    db.add(owner); db.commit(); db.refresh(owner)
+    artwork = Artwork(owner_id=owner.id, file_path="/tmp/private-original.png", sha256=sha256(data).hexdigest(), phash="f" * 16, title="Private original", originality=100, status="approved_local", media_type="image", visibility="private")
+    db.add(artwork); db.commit(); db.close()
+
+    monkeypatch.setattr(artwork_router, "verify_on_chain", lambda _hash: False)
+    response = client.post("/verify", files={"file": ("private.png", data, "image/png")})
+    assert response.status_code == 200, response.text
+    assert response.json()["registered"] is True
+    assert response.json()["matched_image_url"] is None
+
+
 def test_metamask_signature_and_nonce_errors():
     email = f"wallet-{uuid4().hex}@example.com"
     password = "correct-horse-battery-staple"

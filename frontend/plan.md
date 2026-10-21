@@ -18,3 +18,9 @@
 ## Implementation
 
 Frontend React/Vite nằm trong `frontend/`, proxy `/api` chuyển đến FastAPI `localhost:8000`. Ba view chính là Gallery, Upload & Protect và Verify; auth modal xử lý login/register; wallet helper dùng ethers v6 cho MetaMask message signing.
+
+## Cập nhật giao diện MediaGuard
+
+Giữ nguyên kiến trúc và luồng xác thực/ví/API. Dùng chung container 1040px cho nội dung và breadcrumb. Chuẩn hóa mint #5EE6C8 cho exact/protected, xanh #6CB8FF cho not registered, vàng #F5B65B cho similar/pending, xám xanh cho local proof; thanh tương đồng không gradient. Thống kê nhãn trên, số 40px; typography phụ tối thiểu 12px #9AA9C2 và tiêu đề lớn tracking -0.02em.
+
+Gallery giữ quyền riêng tư tác phẩm, hiển thị trạng thái pending/failed công khai để chủ sở hữu retry qua endpoint có kiểm tra quyền sẵn có; bổ sung cờ is_owner do server tính. Verify bổ sung URL thumbnail gần nhất từ bản ghi public, định dạng mọi phần trăm một chữ số thập phân và CTA sang Upload. Upload bỏ chip ví trùng, dropzone 300px, checkbox trong khung bo góc và nhãn form 14px đậm. Kiểm thử trên dữ liệu demo SQLite riêng, không gửi giao dịch thật; ảnh chụp không đưa vào mã production.
