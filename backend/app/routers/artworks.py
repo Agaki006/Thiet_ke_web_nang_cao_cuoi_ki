@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy import select
@@ -18,6 +18,7 @@ from ..services.blockchain_service import find_registration_tx, get_transaction_
 from ..services.image_service import InvalidImageError, phash_file, sha256_file, similarity_percent, validate_image
 from ..services.rate_limit import VERIFY_LIMITER
 from ..services.text_service import InvalidWrittenWorkError, extract_written_content, text_similarity
+from ..services.storage_service import cloud_enabled, is_remote, media_url, upload_file
 
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token")
 optional_oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
@@ -69,7 +70,7 @@ def parse_artwork(row: Artwork, *, viewer: User | None = None) -> ArtworkOut:
     return ArtworkOut(
         id=row.id, title=row.title, description=row.description, tags=json.loads(row.tags or "[]"),
         sha256=row.sha256, phash=row.phash, originality=row.originality, status=row.status,
-        tx_hash=row.tx_hash, image_url=f"/api/media/{Path(row.file_path).name}" if media_type == "image" else None,
+        tx_hash=row.tx_hash, image_url=media_url(row.file_path) if media_type == "image" else None,
         download_url=f"/api/artworks/{row.id}/download" if bool(getattr(row, "allow_download", False)) and visibility == "public" else None,
         author_email=row.owner.email if row.show_contact_email else None,
         author_wallet=row.owner.wallet_address, media_type=media_type,
@@ -148,7 +149,7 @@ def get_artwork_detail(artwork_id: int, viewer: User | None = Depends(optional_c
         kind=media_type, owner_address=row.owner.wallet_address, created_at=row.created_at, status=row.status,
         sha256=row.sha256, phash=row.phash, tx_hash=row.tx_hash,
         contract_address=os.getenv("CONTRACT_ADDRESS"),
-        image_url=f"/api/media/{Path(row.file_path).name}" if media_type == "image" and row.visibility == "public" else None,
+        image_url=media_url(row.file_path) if media_type == "image" and row.visibility == "public" else None,
         work_type=getattr(row, "work_type", None), originality=row.originality,
         is_owner=bool(viewer and viewer.id == row.owner_id),
     )
@@ -159,6 +160,8 @@ def download_artwork(artwork_id: int, db: Session = Depends(get_db)):
     row = db.get(Artwork, artwork_id)
     if not row or row.visibility != "public" or not row.allow_download:
         raise HTTPException(404, "Tác phẩm không cho phép tải xuống")
+    if is_remote(row.file_path):
+        return RedirectResponse(row.file_path)
     path = Path(row.file_path)
     if not path.is_file():
         raise HTTPException(404, "Không tìm thấy file tác phẩm")
@@ -206,19 +209,28 @@ async def register_artwork(
         if best >= 85:
             label = "văn bản" if media_type == "written" else "ảnh"
             raise HTTPException(409, {"message": f"{label.capitalize()} quá giống tác phẩm đã đăng ký", "similarity_percent": best, "suspected_artwork_id": nearest.id})
+        stored_path = str(target)
+        if cloud_enabled():
+            try:
+                stored_path = await run_in_threadpool(upload_file, target, media_type)
+            except Exception as exc:
+                logger.exception("Upload Cloudinary that bai")
+                raise HTTPException(502, "Không thể lưu file lên kho lưu trữ") from exc
         try:
             tag_list = json.loads(tags)
         except json.JSONDecodeError:
             tag_list = [x.strip() for x in tags.split(",") if x.strip()]
         preview_text = content_text[:400] if media_type == "written" and show_public_preview and visibility == "public" else None
         row = Artwork(
-            owner_id=user.id, file_path=str(target), sha256=sha, phash=phash, title=title, description=description,
+            owner_id=user.id, file_path=stored_path, sha256=sha, phash=phash, title=title, description=description,
             tags=json.dumps(tag_list), originality=round(100 - best), status="pending_chain", show_contact_email=show_contact_email,
             media_type=media_type, work_type=work_type or ("written" if media_type == "written" else "image"), language=language or None,
             word_count=word_count, page_count=page_count, content_text=content_text, preview_text=preview_text,
             license=license, visibility=visibility, show_public_preview=bool(show_public_preview), allow_download=bool(allow_download),
         )
         db.add(row); db.commit(); db.refresh(row)
+        if is_remote(stored_path):
+            target.unlink(missing_ok=True)
         try:
             row.tx_hash = await run_in_threadpool(register_on_chain, sha, user.wallet_address, row.originality, f"mediaguard://artworks/{row.id}")
             if row.tx_hash:
@@ -253,7 +265,7 @@ async def verify_artwork(request: Request, file: UploadFile = File(...), db: Ses
                 on_chain_registered=on_chain, message="Mã SHA-256 của file khớp hoàn toàn với tác phẩm đã đăng ký. File này giống hệt bản gốc.", media_type=media_type,
                 matched_title=exact.title, matched_wallet=exact.owner.wallet_address, matched_created_at=exact.created_at,
                 matched_status=exact.status, matched_tx_hash=exact.tx_hash,
-                matched_image_url=f"/api/media/{Path(exact.file_path).name}" if exact.media_type == "image" and exact.visibility == "public" else None,
+                matched_image_url=media_url(exact.file_path) if exact.media_type == "image" and exact.visibility == "public" else None,
                 matched_block_number=proof.get("block_number") if proof else None,
                 matched_block_timestamp=(datetime.fromtimestamp(proof["block_timestamp"], timezone.utc) if proof and proof.get("block_timestamp") else None),
             )
@@ -276,7 +288,7 @@ async def verify_artwork(request: Request, file: UploadFile = File(...), db: Ses
             sha256=sha, registered=False, suspected_artwork_id=nearest.id if nearest else None,
             suspected_artwork_title=nearest.title if nearest else None,
             # Do not reveal a private work's direct media path through a public verification.
-            suspected_artwork_image_url=(f"/api/media/{Path(nearest.file_path).name}" if nearest and nearest.media_type == "image" and nearest.visibility == "public" else None),
+            suspected_artwork_image_url=(media_url(nearest.file_path) if nearest and nearest.media_type == "image" and nearest.visibility == "public" else None),
             suspected_artwork_media_type=nearest.media_type if nearest else None,
             similarity_percent=best, message=f"Không trùng tuyệt đối; giống gần nhất {best:.1f}%" if nearest else "Chưa có dữ liệu đối chiếu", media_type=media_type,
         )
