@@ -1,4 +1,4 @@
-docker compose up -d --wait
+docker compose up -d --build --wait
 Write-Host ""
 Write-Host "Frontend:     http://localhost:5173"
 Write-Host "Backend API:  http://localhost:8000"
