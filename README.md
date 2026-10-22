@@ -26,6 +26,14 @@ git switch main
 git pull --ff-only origin main
 ```
 
+Sau khi clone, trên Windows PowerShell có thể chạy toàn bộ local stack bằng một dòng:
+
+```powershell
+git clone https://github.com/Luzji/Web_project.git; cd Web_project; .\run.ps1
+```
+
+`run.ps1` tự tạo `.env` từ `.env.example` nếu clone mới chưa có file này. Script không ghi đè `.env` đã tồn tại.
+
 ### Trường hợp đã có thư mục project trên máy
 
 Mở Terminal tại thư mục project và kiểm tra thay đổi local trước:

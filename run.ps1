@@ -1,3 +1,10 @@
+$ErrorActionPreference = "Stop"
+
+if (-not (Test-Path ".env")) {
+    Copy-Item ".env.example" ".env"
+    Write-Host "Created .env from .env.example for local development." -ForegroundColor Yellow
+}
+
 docker compose up -d --build --wait
 Write-Host ""
 Write-Host "Frontend:     http://localhost:5173"
