@@ -83,21 +83,40 @@ docker compose version
 
 Mở Terminal tại **thư mục gốc của repository** — nơi có file `docker-compose.yml` — rồi chạy:
 
-```bash
-test -f .env || cp .env.example .env; docker compose up --build
-```
-
-Trên Windows PowerShell, dùng:
+Trên Windows PowerShell, cách khuyến nghị là:
 
 ```powershell
-if (!(Test-Path .env)) { Copy-Item .env.example .env }; docker compose up --build
+.\run.ps1
+```
+
+Script sẽ kiểm tra Docker, chỉ tạo `.env` nếu file chưa tồn tại, build lại image và khởi động hai service ở chế độ nền. Script không ghi đè `.env` hiện có.
+
+Trên macOS/Linux:
+
+```bash
+chmod +x ./run.sh
+./run.sh
+```
+
+Nếu muốn chạy trực tiếp bằng Docker Compose:
+
+```bash
+test -f .env || cp .env.example .env
+docker compose up --build
+```
+
+Hoặc trên Windows PowerShell:
+
+```powershell
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+docker compose up --build
 ```
 
 Lệnh trên thực hiện ba việc:
 
 1. Tạo `.env` từ `.env.example` nếu máy chưa có file `.env`.
 2. Build image cho backend và frontend.
-3. Khởi động hai container, trong đó frontend chỉ khởi động sau khi healthcheck backend đạt yêu cầu.
+3. Build và khởi động hai container, trong đó frontend chỉ khởi động sau khi healthcheck backend đạt yêu cầu.
 
 Không nên dùng `cp .env.example .env` mỗi lần chạy vì lệnh đó sẽ ghi đè các cấu hình bạn đã chỉnh trong `.env`. Lệnh ở trên chỉ tạo file khi file chưa tồn tại.
 
@@ -119,6 +138,8 @@ Giữ nguyên cửa sổ Terminal để các container tiếp tục chạy. Nh�
 ```bash
 docker compose up --build -d
 ```
+
+`run.ps1` và `run.sh` dùng thêm `--wait`, vì vậy lệnh chỉ hoàn tất sau khi backend đạt healthcheck. Nếu Docker Compose của bạn chưa hỗ trợ `--wait`, hãy cập nhật Docker Desktop hoặc dùng `docker compose up --build -d` rồi kiểm tra `http://localhost:8000/health`.
 
 Xem log:
 
