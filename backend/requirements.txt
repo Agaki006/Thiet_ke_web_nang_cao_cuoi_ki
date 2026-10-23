@@ -14,7 +14,6 @@ passlib[bcrypt]
 bcrypt<5
 python-jose[cryptography]
 email-validator
-google-genai
 pypdf
 httpx
 cloudinary
