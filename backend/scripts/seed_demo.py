@@ -17,11 +17,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.db import SessionLocal, Base, engine, ensure_sqlite_columns
 from app.models import Artwork, User
+# Dùng đúng thư mục upload của backend (biến UPLOAD_DIR) để /media phục vụ được file seed,
+# cả khi chạy local lẫn trong Docker (UPLOAD_DIR=/data/uploads nằm trong volume).
+from app.routers.artworks import UPLOAD_DIR
 from app.services.auth_service import hash_password
 from app.services.image_service import phash_file
 
-ROOT = Path(__file__).resolve().parents[2]
-UPLOADS = ROOT / "uploads"
+UPLOADS = UPLOAD_DIR.resolve()
 SEED_PREFIX = "[Demo]"
 
 DEMO_WORKS = [
@@ -55,7 +57,7 @@ def main() -> None:
     args = parser.parse_args()
     Base.metadata.create_all(bind=engine)
     ensure_sqlite_columns()
-    UPLOADS.mkdir(exist_ok=True)
+    UPLOADS.mkdir(parents=True, exist_ok=True)
     db = SessionLocal()
     try:
         if args.reset_demo:
